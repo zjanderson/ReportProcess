@@ -3,11 +3,10 @@ import win32com.client as win32
 import os
 
 
-# Function 1: Import big report file for one email
+# Function 1: Import big report file 
 def parse_report(file_name):
     try:
-        excel_file = file_name
-        df = pd.read_excel(excel_file)
+        df = pd.read_excel(file_name)
     
         # Group by 'Carrier Name'
         carriers = df.groupby("Carrier Name")
@@ -61,6 +60,7 @@ def compose_email(outlook, carrier_name, recipient,recipientCC, html_table_with_
         signature_html = signature_html.replace("src=\"", "src=\"cid:signature_image\"")
 
     # Create email body
+    # TODO move to global variable so can have multiple templates
     email_body = f"""
         <p>Please provide updated location and status for the following loads:</p>
         
@@ -76,6 +76,7 @@ def compose_email(outlook, carrier_name, recipient,recipientCC, html_table_with_
 
 
 # Helper function: Get signature and image
+# TODO: Revisit this-- probably needlessly complex and might be why it's flakey 
 def get_signature_and_image():
     signature_path = os.path.join(os.getenv('APPDATA'), r"Microsoft\Signatures")
 
@@ -153,6 +154,7 @@ s
 # and corresponding email group
 
 def find_CC_recips(destinations, email_group):
+    #TODO: make cc field a set so no dups and fast lookup
 
     CC_field = ''
 
@@ -223,6 +225,6 @@ build_emails("C:\\Users\\zanderson\\Downloads\\Report.xlsx")
 
 #QC to see if CFA/McD/other owners share location info, and how to parse that.
 
-#build function to do normal loads AND function to do priority loads (change title and body of email only)
+#build function to do normal loads AND function to do priority loads (change title and body of email only), split into two different functions
 
-#update functions to be able to access different sheets of workbook?
+#update functions to be able to access different sheets of workbook - differentiate on sheet
