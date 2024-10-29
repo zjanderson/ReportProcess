@@ -147,7 +147,7 @@ def get_map_email_groups(ops_contacts):
 #        map_owner_groups[owner] = email_group
 #    return map_owner_groups
 
-
+s
 
 # Helper function - finding CC field of email groups for McD and CFA - check 'Owner' column for .contains MCD or Chik-fil-a, then reference destinations, otherwise new hashmap for Owner 
 # and corresponding email group
@@ -179,6 +179,9 @@ def build_emails(file_name):
     # Email groups hashmap
     email_group = get_map_email_groups("C:\\Users\\zanderson\\Documents\\Ops_Contacts.xlsx")
 
+    # Lower priority email groups hashmap
+    #owner_group = map_get_owner_groups("C:\\Users\\zanderson\\Documents\\FILENAME_TBD)
+
     # Loop through each unique Carrier and send an email
     for carrier_name, group in carriers:
         dest_name = group.get('Dest Name')
@@ -189,7 +192,7 @@ def build_emails(file_name):
 
         recipient = all_carrier_contacts.get(carrier_name)
 
-        recipientCC = find_CC_recips(dest_name, email_group)
+        recipientCC = find_CC_recips(dest_name, email_group) #TODO incorporate lower priority email groups hashmap, AND control for duplicate group insertion
 
         
         # Compose the email
