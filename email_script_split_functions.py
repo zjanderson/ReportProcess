@@ -40,7 +40,7 @@ def prepare_data_for_email(group):
 
 
 # Function 3: Compose a single email with body, signature, and image
-def compose_email(outlook, carrier_name, recipient, html_table_with_styles):
+def compose_email(outlook, carrier_name, recipient,recipientCC, html_table_with_styles):
     # Get signature and image if any
     signature_html, image_file = get_signature_and_image()
 
@@ -108,7 +108,7 @@ def get_signature_and_image():
 
     return signature_html, image_file
 
-# Helper function: make a hashmap of carrier names and contacts ###THIS IS WORKING
+# Helper function: make a hashmap of carrier names and contacts 
 def get_map_carriers_contacts(contacts_file):
     contacts_df = pd.read_excel(contacts_file)
 
@@ -118,10 +118,10 @@ def get_map_carriers_contacts(contacts_file):
         carrier_name = str(row['Carrier']).strip()
         contact_info = str(row['AFTERHOUR CONTACTS']).strip()
 
-        map_carriers_contacts[carrier_name] = contact_info
+        map_carriers_contacts[carrier_name] = contact_info 
     return map_carriers_contacts
 
-# Helper function: make a hashmap of locations and email groups  THIS DOESN'T WORK - DEST_NAME NEEDS TO BE DEFINED
+# Helper function: make a hashmap of locations and email groups
 def get_map_email_groups(ops_contacts):
     egroups_df = pd.read_excel(ops_contacts)
 
@@ -133,6 +133,36 @@ def get_map_email_groups(ops_contacts):
 
         map_email_groups[dest_name] = email_group
     return map_email_groups
+
+# Helper function: make a hashmap of owners and email groups ##MAKE SPREADSHEET OWNER_CONTACTS WITH OWNERS AND CORRESPONDING EMAIL GROUPS, add to build funcion
+#def get_map_owner_groups(owner_contacts):
+#    egroups_df = pd.read_excel(owner_contacts)
+
+#    map_owner_groups = {}
+
+#    for row_number, row in egroups_df.iterrows():
+#        owner = str(row['Owner']).strip()
+#        email_group = str(row['Email Group']).strip()
+
+#        map_owner_groups[owner] = email_group
+#    return map_owner_groups
+
+
+
+# Helper function - finding CC field of email groups for McD and CFA - check 'Owner' column for .contains MCD or Chik-fil-a, then reference destinations, otherwise new hashmap for Owner 
+# and corresponding email group
+
+def find_CC_recips(destinations, email_group):
+
+    CC_field = ''
+
+    for location in destinations:
+        email = email_group.get(location)
+        if email is not None:
+            CC_field+=email_group.get(location)
+            CC_field+=(';')
+
+    return CC_field
 
 
 # Function 4: Send emails
@@ -151,17 +181,25 @@ def build_emails(file_name):
 
     # Loop through each unique Carrier and send an email
     for carrier_name, group in carriers:
+        dest_name = group.get('Dest Name')
+        #print(dest_name)
+
         # Normalize data and prepare HTML table
         html_table_with_styles = prepare_data_for_email(group)
 
-        recipient = all_carrier_contacts[carrier_name]
-        recipientCC = email_group[dest_name]
+        recipient = all_carrier_contacts.get(carrier_name)
+
+        recipientCC = find_CC_recips(dest_name, email_group)
+
         
         # Compose the email
-        mail = compose_email(outlook, carrier_name, recipient, recipientCC, html_table_with_styles)
+        try:
+            mail = compose_email(outlook, carrier_name, recipient, recipientCC, html_table_with_styles)
 
-        # Display the email (use mail.Send() to send directly)
-        mail.Display()
+            # Display the email (use mail.Send() to send directly)
+            mail.Display()
+        except Exception as e:
+            print(f"Failed for {carrier_name}. Error {e}.")
 
 
 
@@ -172,13 +210,11 @@ build_emails("C:\\Users\\zanderson\\Downloads\\Report.xlsx")
 
 #TO DO LIST, ROUGHLY PRIORITIZED
 
-#Install Git - create Repo for version control, access from both machines to test.
+#create Repo for version control, access from both machines to test.
 
 #Data entry of spreadsheet for email groups
 
-#function to hashmap email group info
-
-#update function to build email with CC mailto fields
+#update function to build email with CC mailto fields - partially complete
 
 #add functionality to schedule send of emails at randomized intervals based on either discreet start time or NOW + X hours
 
@@ -187,7 +223,3 @@ build_emails("C:\\Users\\zanderson\\Downloads\\Report.xlsx")
 #build function to do normal loads AND function to do priority loads (change title and body of email only)
 
 #update functions to be able to access different sheets of workbook?
-
-#Selenium install and documentation review
-
-#Selenium to check inboxes for new mail and pull out Load ID/PO info
