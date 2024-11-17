@@ -148,20 +148,21 @@ def get_map_email_groups(ops_contacts):
 #        map_owner_groups[owner] = email_group
 #    return map_owner_groups
 
-
+s
 
 # Helper function - finding CC field of email groups for McD and CFA - check 'Owner' column for .contains MCD or Chik-fil-a, then reference destinations, otherwise new hashmap for Owner 
 # and corresponding email group
 
 def find_CC_recips(destinations, email_group):
+    #TODO: make cc field a set so no dups and fast lookup
 
-    CC_field = set()
+    CC_field = ''
 
     for location in destinations:
         email = email_group.get(location)
         if email is not None:
-            email = email_group.get(location)
-            CC_field.add(email)
+            CC_field+=email_group.get(location)
+            CC_field+=(';')
 
     return CC_field
 
@@ -193,7 +194,7 @@ def build_emails(file_name):
 
         recipient = all_carrier_contacts.get(carrier_name)
 
-        recipientCC = ";".join(find_CC_recips(dest_name, email_group))
+        recipientCC = find_CC_recips(dest_name, email_group) #TODO incorporate lower priority email groups hashmap, AND control for duplicate group insertion
 
         
         # Compose the email
@@ -227,3 +228,5 @@ build_emails("C:\\Users\\zanderson\\Downloads\\Report.xlsx")
 #build function to do normal loads AND function to do priority loads (change title and body of email only), split into two different functions
 
 #update functions to be able to access different sheets of workbook - differentiate on sheet
+
+# FOR OUTBOUND: design a script to take in the inbound emails, see if they contain things.
