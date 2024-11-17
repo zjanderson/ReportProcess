@@ -149,7 +149,6 @@ def get_map_email_groups(ops_contacts):
 #        map_owner_groups[owner] = email_group
 #    return map_owner_groups
 
-s
 
 # Helper function - finding CC field of email groups for McD and CFA - check 'Owner' column for .contains MCD or Chik-fil-a, then reference destinations, otherwise new hashmap for Owner 
 # and corresponding email group
