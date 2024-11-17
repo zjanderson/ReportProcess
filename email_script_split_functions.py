@@ -80,31 +80,32 @@ def compose_email(outlook, carrier_name, recipient,recipientCC, html_table_with_
 def get_signature_and_image():
     signature_path = os.path.join(os.getenv('APPDATA'), r"Microsoft\Signatures")
 
-    if os.path.exists(signature_path):
-        # Find the .htm file (HTML signature)
-        signature_files = [f for f in os.listdir(signature_path) if f.endswith('.htm')]
-        
-        if signature_files:
-            signature_name = signature_files[0].split(".htm")[0]  # Get signature name without the extension
-            with open(os.path.join(signature_path, signature_files[0]), 'r', encoding='latin-1') as f:
-                signature_html = f.read()
-            
-            # Locate the subfolder where images are stored (subfolder has the same name as the signature)
-            image_subfolder = os.path.join(signature_path, signature_name + "_files")
-            
-            if os.path.exists(image_subfolder):
-                image_files = [f for f in os.listdir(image_subfolder) if f.endswith(('.png', '.jpg', '.jpeg'))]
-                if image_files:
-                    image_file = os.path.join(image_subfolder, image_files[0])
-                else:
-                    image_file = None
-            else:
-                image_file = None
+    # Check if the signature directory exists
+    if not os.path.exists(signature_path):
+        return "", None
+
+    # Find the first HTML signature file
+    signature_files = [f for f in os.listdir(signature_path) if f.endswith('.htm')]
+    if not signature_files:
+        return "", None
+
+    # Read the signature HTML
+    signature_file = signature_files[0]
+    with open(os.path.join(signature_path, signature_file), 'r', encoding='latin-1') as f:
+        signature_html = f.read()
+
+    # Locate the subfolder with images (if it exists)
+    signature_name = os.path.splitext(signature_file)[0]
+    image_folder = os.path.join(signature_path, f"{signature_name}_files")
+    if os.path.exists(image_folder):
+        image_files = [f for f in os.listdir(image_folder) if f.endswith(('.png', '.jpg', '.jpeg'))]
+        if image_files:
+            image_file = os.path.join(image_folder, image_files[0])
+            # Replace image path in the signature HTML
+            signature_html = signature_html.replace('src="', f'src="file:///{image_file}"')
         else:
-            signature_html = ""
             image_file = None
     else:
-        signature_html = ""
         image_file = None
 
     return signature_html, image_file
