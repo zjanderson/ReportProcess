@@ -215,17 +215,11 @@ build_emails("C:\\Users\\zanderson\\Downloads\\Report.xlsx")
 
 #TO DO LIST, ROUGHLY PRIORITIZED
 
-#create Repo for version control, access from both machines to test.
-
 #Data entry of spreadsheet for email groups
-
-#update function to build email with CC mailto fields - partially complete
 
 #add functionality to schedule send of emails at randomized intervals based on either discreet start time or NOW + X hours
 
 #QC to see if CFA/McD/other owners share location info, and how to parse that.
-
-#build function to do normal loads AND function to do priority loads (change title and body of email only), split into two different functions
 
 #update functions to be able to access different sheets of workbook - differentiate on sheet
 
