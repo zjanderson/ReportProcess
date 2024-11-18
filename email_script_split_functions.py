@@ -165,7 +165,6 @@ def find_CC_recips(destinations, email_group):
             CC_field+=(';')
 
     return CC_field
-##why is this here??
 
 
 # Function 4: Send emails
