@@ -156,13 +156,13 @@ def get_map_email_groups(ops_contacts):
 def find_CC_recips(destinations, email_group):
     #TODO: make cc field a set so no dups and fast lookup
 
-    CC_field = ''
+    CC_field = set()
 
     for location in destinations:
         email = email_group.get(location)
         if email is not None:
-            CC_field+=email_group.get(location)
-            CC_field+=(';')
+            email = email_group.get(location)
+            CC_field.add(email)
 
     return CC_field
 
@@ -194,7 +194,7 @@ def build_emails(file_name):
 
         recipient = all_carrier_contacts.get(carrier_name)
 
-        recipientCC = find_CC_recips(dest_name, email_group) #TODO incorporate lower priority email groups hashmap, AND control for duplicate group insertion
+        recipientCC = ";".join(find_CC_recips(dest_name, email_group))
 
         
         # Compose the email
@@ -215,17 +215,11 @@ build_emails("C:\\Users\\zanderson\\Downloads\\Report.xlsx")
 
 #TO DO LIST, ROUGHLY PRIORITIZED
 
-#create Repo for version control, access from both machines to test.
-
 #Data entry of spreadsheet for email groups
-
-#update function to build email with CC mailto fields - partially complete
 
 #add functionality to schedule send of emails at randomized intervals based on either discreet start time or NOW + X hours
 
 #QC to see if CFA/McD/other owners share location info, and how to parse that.
-
-#build function to do normal loads AND function to do priority loads (change title and body of email only), split into two different functions
 
 #update functions to be able to access different sheets of workbook - differentiate on sheet
 
