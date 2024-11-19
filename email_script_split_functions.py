@@ -29,15 +29,15 @@ EMAIL_TEMPLATES = {
 }
 
 # Function 1: Import big report file 
-def parse_report(file_name):
+def parse_report(file_name, sheet_name):
     try:
-        df = pd.read_excel(file_name)
-    
+        df = pd.read_excel(file_name, sheet_name=sheet_name)
         # Group by 'Carrier Name'
         carriers = df.groupby("Carrier Name")
         return carriers
     except Exception as e: 
-        print(f"Failure to import Report file! Error defined as: {e}")
+        print(f"Failure to import sheet {sheet_name} from Report file! Error defined as: {e}")
+        return None
 
 
 # Function 2: Generate table, eliminate NaN
@@ -192,41 +192,55 @@ def find_CC_recips(destinations, email_group):
 
 # Function 4: Send emails
 def build_emails(file_name):
-    # Parse report
-    carriers = parse_report(file_name)
-
-    # Initialize Outlook
-    outlook = win32.Dispatch('outlook.application')
-
-    # all contacts hashmap
-    all_carrier_contacts = get_map_carriers_contacts("C:\\Users\\zanderson\\Documents\\Afterhours_Contacts.xlsx")
-
-    # Email groups hashmap
-    email_group = get_map_email_groups("C:\\Users\\zanderson\\Documents\\Ops_Contacts.xlsx")
-
-    # Lower priority email groups hashmap
-    #owner_group = map_get_owner_groups("C:\\Users\\zanderson\\Documents\\FILENAME_TBD)
-
-    # Loop through each unique Carrier and send an email
-    for carrier_name, group in carriers:
-        dest_names = group['Dest Name'].unique()  # Get unique destination names from the DataFrame
-
-        # Normalize data and prepare HTML table
-        html_table_with_styles = prepare_data_for_email(group)
-
-        recipient = all_carrier_contacts.get(carrier_name)
-
-        recipientCC = ";".join(find_CC_recips(dest_names, email_group))
-
+    # Define sheet configurations
+    sheet_configs = {
+        'Sheet1': {'template': 'overnight_update'},
+        'Sheet2': {'template': 'hot_loads'},
+        'Sheet3': {'template': 'hot_loads'}
+    }
+    
+    try:
+        # Initialize Outlook and contact maps
+        outlook = win32.Dispatch('outlook.application')
+        all_carrier_contacts = get_map_carriers_contacts("C:\\Users\\zanderson\\Documents\\Afterhours_Contacts.xlsx")
+        email_group = get_map_email_groups("C:\\Users\\zanderson\\Documents\\Ops_Contacts.xlsx")
         
-        # Compose the email
-        try:
-            mail = compose_email(outlook, carrier_name, recipient, recipientCC, html_table_with_styles)
-
-            # Display the email (use mail.Send() to send directly)
-            mail.Display()
-        except Exception as e:
-            print(f"Failed for {carrier_name}. Error {e}.")
+        # Process each sheet
+        for sheet_name, config in sheet_configs.items():
+            print(f"Processing {sheet_name}...")
+            carriers = parse_report(file_name, sheet_name)
+            if carriers is None:
+                continue
+                
+            template_key = config['template']
+            
+            # Process carriers in the current sheet
+            for carrier_name, group in carriers:
+                dest_names = group['Dest Name'].unique()
+                html_table_with_styles = prepare_data_for_email(group)
+                
+                recipient = all_carrier_contacts.get(carrier_name)
+                if not recipient:
+                    print(f"No contact found for carrier: {carrier_name}")
+                    continue
+                    
+                recipientCC = ";".join(find_CC_recips(dest_names, email_group))
+                
+                try:
+                    mail = compose_email(
+                        outlook, 
+                        carrier_name, 
+                        recipient, 
+                        recipientCC, 
+                        html_table_with_styles,
+                        template_key=template_key
+                    )
+                    mail.Display()
+                except Exception as e:
+                    print(f"Failed to create email for {carrier_name} in {sheet_name}. Error: {e}")
+                    
+    except Exception as e:
+        print(f"Failed to initialize Outlook or load contact maps. Error: {e}")
 
 
 
