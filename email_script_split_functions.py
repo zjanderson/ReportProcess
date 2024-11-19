@@ -3,6 +3,31 @@ import win32com.client as win32
 import os
 from datetime import datetime, timedelta
 
+# Email templates
+EMAIL_TEMPLATES = {
+    "overnight_update": {
+        "subject": "Overnight Updates - {carrier_name}",
+        "body": """
+            <p>Please provide updated location and ETA for the following loads:</p>
+            
+            {html_table_with_styles}
+            
+            <p>If a load has picked up and/or delivered, please update MercuryGate with in/out times.</p>
+            """
+    },
+    # Add more templates as needed, for example:
+    "hot_loads": {
+        "subject": "Priority Loads: Status Update Required - {carrier_name}",
+        "body": """
+            <p>Please provide status updates for the following high-priority loads:</p>
+            
+            {html_table_with_styles}
+            
+            <p>If a load has picked up and/or delivered, please update MercuryGate with in/out times.</p>
+            """
+    }
+}
+
 # Function 1: Import big report file 
 def parse_report(file_name):
     try:
@@ -39,13 +64,17 @@ def prepare_data_for_email(group):
 
 
 # Function 3: Compose a single email with body, signature, and image
-def compose_email(outlook, carrier_name, recipient, recipientCC, html_table_with_styles):
+def compose_email(outlook, carrier_name, recipient, recipientCC, html_table_with_styles, template_key="overnight_update"):
     # Get signature and image if any
     signature_html, image_file = get_signature_and_image()
 
     # Create a new email
     mail = outlook.CreateItem(0)  # 0 = Mail item
-    mail.Subject = f"Overnight Updates - {carrier_name}"
+    template = EMAIL_TEMPLATES.get(template_key)
+    if not template:
+        raise ValueError(f"Invalid template key: {template_key} not found")
+    
+    mail.Subject = template["subject"].format(carrier_name=carrier_name)
     mail.to = recipient
     mail.cc = recipientCC
 
@@ -65,14 +94,7 @@ def compose_email(outlook, carrier_name, recipient, recipientCC, html_table_with
         signature_html = signature_html.replace("src=\"", "src=\"cid:signature_image\"")
 
     # Create email body
-    # TODO move to global variable so can have multiple templates
-    email_body = f"""
-        <p>Please provide updated location and status for the following loads:</p>
-        
-        {html_table_with_styles}
-        
-        <p>If a load has picked up and/or delivered, please update MercuryGate with in/out times.</p>
-        """
+    email_body = template["body"].format(html_table_with_styles=html_table_with_styles)
     
     # Set the email body (with the table of data)
     mail.HTMLBody = email_body + signature_html
@@ -81,7 +103,6 @@ def compose_email(outlook, carrier_name, recipient, recipientCC, html_table_with
 
 
 # Helper function: Get signature and image
-# TODO: Revisit this-- probably needlessly complex and might be why it's flakey 
 def get_signature_and_image():
     signature_path = os.path.join(os.getenv('APPDATA'), r"Microsoft\Signatures")
 
@@ -165,7 +186,6 @@ def find_CC_recips(destinations, email_group):
     for location in destinations:
         email = email_group.get(location)
         if email is not None:
-            email = email_group.get(location)
             CC_field.add(email)
 
     return CC_field
@@ -190,14 +210,14 @@ def build_emails(file_name):
 
     # Loop through each unique Carrier and send an email
     for carrier_name, group in carriers:
-        dest_name = group.get('Dest Name')
+        dest_names = group['Dest Name'].unique()  # Get unique destination names from the DataFrame
 
         # Normalize data and prepare HTML table
         html_table_with_styles = prepare_data_for_email(group)
 
         recipient = all_carrier_contacts.get(carrier_name)
 
-        recipientCC = ";".join(find_CC_recips(dest_name, email_group))
+        recipientCC = ";".join(find_CC_recips(dest_names, email_group))
 
         
         # Compose the email
