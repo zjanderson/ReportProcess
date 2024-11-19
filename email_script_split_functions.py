@@ -1,7 +1,7 @@
 import pandas as pd
 import win32com.client as win32
 import os
-
+from datetime import datetime, timedelta
 
 # Function 1: Import big report file 
 def parse_report(file_name):
@@ -39,7 +39,7 @@ def prepare_data_for_email(group):
 
 
 # Function 3: Compose a single email with body, signature, and image
-def compose_email(outlook, carrier_name, recipient,recipientCC, html_table_with_styles):
+def compose_email(outlook, carrier_name, recipient, recipientCC, html_table_with_styles):
     # Get signature and image if any
     signature_html, image_file = get_signature_and_image()
 
@@ -49,7 +49,12 @@ def compose_email(outlook, carrier_name, recipient,recipientCC, html_table_with_
     mail.to = recipient
     mail.cc = recipientCC
 
-    # Attach image (if any)
+    # Set deferred delivery time to 5 hours from now
+    from datetime import datetime, timedelta
+    delivery_time = datetime.now() + timedelta(hours=5)
+    mail.DeferredDeliveryTime = delivery_time.strftime("%Y-%m-%d %H:%M")
+
+    # ... rest of the existing code ...    # Attach image (if any)
     if image_file:
         attachment = mail.Attachments.Add(image_file)
         # Set Content ID for the image (to embed it in the HTML body)
@@ -154,7 +159,6 @@ def get_map_email_groups(ops_contacts):
 # and corresponding email group
 
 def find_CC_recips(destinations, email_group):
-    #TODO: make cc field a set so no dups and fast lookup
 
     CC_field = set()
 
@@ -187,7 +191,6 @@ def build_emails(file_name):
     # Loop through each unique Carrier and send an email
     for carrier_name, group in carriers:
         dest_name = group.get('Dest Name')
-        #print(dest_name)
 
         # Normalize data and prepare HTML table
         html_table_with_styles = prepare_data_for_email(group)
