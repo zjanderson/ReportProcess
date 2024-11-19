@@ -83,7 +83,6 @@ def compose_email(outlook, carrier_name, recipient, recipientCC, html_table_with
     delivery_time = datetime.now() + timedelta(hours=5)
     mail.DeferredDeliveryTime = delivery_time.strftime("%Y-%m-%d %H:%M")
 
-    # ... rest of the existing code ...    # Attach image (if any)
     if image_file:
         attachment = mail.Attachments.Add(image_file)
         # Set Content ID for the image (to embed it in the HTML body)
