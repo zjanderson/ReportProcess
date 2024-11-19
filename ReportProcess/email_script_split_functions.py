@@ -249,8 +249,8 @@ def build_emails(file_name):
         
         # Initialize Outlook and contact maps
         outlook = win32.Dispatch('outlook.application')
-        all_carrier_contacts = get_map_carriers_contacts("C:\\Users\\zanderson\\Documents\\Afterhours_Contacts.xlsx")
-        email_group = get_map_email_groups("C:\\Users\\zanderson\\Documents\\Ops_Contacts.xlsx")
+        all_carrier_contacts = get_map_carriers_contacts(".\\Supporting_Documents\\Afterhours_Contacts.xlsx")
+        email_group = get_map_email_groups(".\\Supporting_Documents\\Ops_Contacts.xlsx")
         
         # Process sheets in reverse order
         for i in range(sheet_count - 1, -1, -1):
@@ -297,4 +297,4 @@ if __name__ == "__main__":
     if env == "work":
         build_emails("C:\\Users\\zanderson\\Downloads\\Report.xlsx")
     elif env == "home":
-        build_emails("C:\\Users\\Zachary Anderson\\Downloads\\Report.xlsx")
+        build_emails(".\\Downloads\\Report.xlsx")
