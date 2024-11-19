@@ -297,4 +297,4 @@ if __name__ == "__main__":
     if env == "work":
         build_emails("C:\\Users\\zanderson\\Downloads\\Report.xlsx")
     elif env == "home":
-        build_emails(".\\Downloads\\Report.xlsx")
+        build_emails("C:\\Users\\Zachary Anderson\\Downloads\\Report.xlsx")
