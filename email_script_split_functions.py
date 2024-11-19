@@ -28,7 +28,7 @@ EMAIL_TEMPLATES = {
     }
 }
 
-# Function 1: Import big report file 
+# Import big report file 
 def parse_report(file_name, sheet_name):
     try:
         df = pd.read_excel(file_name, sheet_name=sheet_name)
@@ -40,7 +40,7 @@ def parse_report(file_name, sheet_name):
         return None
 
 
-# Function 2: Generate table, eliminate NaN
+# Generate table, eliminate NaN
 def prepare_data_for_email(group):
     # Eliminate NaN values from the DataFrame
     group = group.fillna('')
@@ -62,8 +62,36 @@ def prepare_data_for_email(group):
 
     return html_table_with_styles
 
+# Combine sheets 1 and 2 if needed
+def combine_sheets(file_name):
+    try:
+        # Read first two sheets
+        df1 = pd.read_excel(file_name, sheet_name=0)  # First sheet
+        df2 = pd.read_excel(file_name, sheet_name=1)  # Second sheet
+        
+        # Combine the dataframes
+        combined_df = pd.concat([df1, df2], ignore_index=True)
+        
+        # Create ExcelWriter object
+        with pd.ExcelWriter(file_name, mode='a', if_sheet_exists='replace') as writer:
+            # Write combined data to a new sheet
+            combined_df.to_excel(writer, sheet_name='Combined', index=False)
+            
+            # Copy remaining sheets (3 and 4) as is
+            df3 = pd.read_excel(file_name, sheet_name=2)
+            df4 = pd.read_excel(file_name, sheet_name=3)
+            df3.to_excel(writer, sheet_name='Sheet3', index=False)
+            df4.to_excel(writer, sheet_name='Sheet4', index=False)
+            
+        return True
+        
+    except Exception as e:
+        print(f"Failed to combine sheets. Error: {e}")
+        return False
 
-# Function 3: Compose a single email with body, signature, and image
+
+
+# Compose a single email with body, signature, and image
 def compose_email(outlook, carrier_name, recipient, recipientCC, html_table_with_styles, template_key="overnight_update"):
     # Get signature and image if any
     signature_html, image_file = get_signature_and_image()
@@ -190,7 +218,7 @@ def find_CC_recips(destinations, email_group):
     return CC_field
 
 
-# Function 4: Send emails
+# Build and Display emails
 def build_emails(file_name):
     try:
         # Get available sheets from the Excel file
@@ -201,12 +229,22 @@ def build_emails(file_name):
         if sheet_count == 0:
             print("No sheets found in the workbook!")
             return
-        elif sheet_count > 3:
-            print("Warning: More than 3 sheets found. Only processing the first 3.")
-            available_sheets = available_sheets[:3]
-            sheet_count = 3
+        elif sheet_count == 4:
+            print("Found 4 sheets. Combining sheets 1 and 2...")
+            if combine_sheets(file_name):
+                # Refresh Excel file handle after modification
+                xl = pd.ExcelFile(file_name)
+                available_sheets = ['Combined', 'Sheet3', 'Sheet4']
+                sheet_count = 3
+            else:
+                print("Failed to combine sheets. Exiting.")
+                return
+        elif sheet_count > 4:
+            print("Warning: More than 4 sheets found. Only processing the first 4.")
+            available_sheets = available_sheets[:4]
+            sheet_count = 4
             
-        print(f"Found {sheet_count} sheets to process")
+        print(f"Processing {sheet_count} sheets")
         
         # Initialize Outlook and contact maps
         outlook = win32.Dispatch('outlook.application')
@@ -256,5 +294,3 @@ def build_emails(file_name):
 
 # Run the script
 build_emails("C:\\Users\\zanderson\\Downloads\\Report.xlsx")
-
-#get_map_carriers_contacts("C:\\Users\\zanderson\\Documents\\Afterhours_Contacts.xlsx")
