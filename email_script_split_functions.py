@@ -192,29 +192,39 @@ def find_CC_recips(destinations, email_group):
 
 # Function 4: Send emails
 def build_emails(file_name):
-    # Define sheet configurations
-    sheet_configs = {
-        'Sheet1': {'template': 'overnight_update'},
-        'Sheet2': {'template': 'hot_loads'},
-        'Sheet3': {'template': 'hot_loads'}
-    }
-    
     try:
+        # Get available sheets from the Excel file
+        xl = pd.ExcelFile(file_name)
+        available_sheets = xl.sheet_names
+        sheet_count = len(available_sheets)
+        
+        if sheet_count == 0:
+            print("No sheets found in the workbook!")
+            return
+        elif sheet_count > 3:
+            print("Warning: More than 3 sheets found. Only processing the first 3.")
+            available_sheets = available_sheets[:3]
+            sheet_count = 3
+            
+        print(f"Found {sheet_count} sheets to process")
+        
         # Initialize Outlook and contact maps
         outlook = win32.Dispatch('outlook.application')
         all_carrier_contacts = get_map_carriers_contacts("C:\\Users\\zanderson\\Documents\\Afterhours_Contacts.xlsx")
         email_group = get_map_email_groups("C:\\Users\\zanderson\\Documents\\Ops_Contacts.xlsx")
         
-        # Process each sheet
-        for sheet_name, config in sheet_configs.items():
-            print(f"Processing {sheet_name}...")
+        # Process sheets in reverse order
+        for i in range(sheet_count - 1, -1, -1):
+            sheet_name = available_sheets[i]
+            # Determine template based on sheet count and position
+            template_key = 'overnight_update' if (sheet_count == 3 and i == 0) else 'hot_loads'
+            
+            print(f"Processing sheet {sheet_name} with template: {template_key}...")
+            
             carriers = parse_report(file_name, sheet_name)
             if carriers is None:
                 continue
                 
-            template_key = config['template']
-            
-            # Process carriers in the current sheet
             for carrier_name, group in carriers:
                 dest_names = group['Dest Name'].unique()
                 html_table_with_styles = prepare_data_for_email(group)
