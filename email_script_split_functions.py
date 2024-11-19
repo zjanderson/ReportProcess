@@ -258,15 +258,3 @@ def build_emails(file_name):
 build_emails("C:\\Users\\zanderson\\Downloads\\Report.xlsx")
 
 #get_map_carriers_contacts("C:\\Users\\zanderson\\Documents\\Afterhours_Contacts.xlsx")
-
-#TO DO LIST, ROUGHLY PRIORITIZED
-
-#Data entry of spreadsheet for email groups
-
-#add functionality to schedule send of emails at randomized intervals based on either discreet start time or NOW + X hours
-
-#QC to see if CFA/McD/other owners share location info, and how to parse that.
-
-#update functions to be able to access different sheets of workbook - differentiate on sheet
-
-# FOR OUTBOUND: design a script to take in the inbound emails, see if they contain things.
