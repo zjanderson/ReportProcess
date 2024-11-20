@@ -31,6 +31,7 @@ DELETE_FOLDERS = [
 
 def execute_deletes():
     for folder in DELETE_FOLDERS:
+        print(folder)
         delete_emails_from_folder(folder)
 
 if __name__ == "__main__":
