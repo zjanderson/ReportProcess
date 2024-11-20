@@ -156,7 +156,7 @@ def execute_web_deletes():
 
 
 if __name__ == "__main__":
-    # execute_app_deletes()
-    # time.sleep(60)
+    execute_app_deletes()
+    time.sleep(60)
     print("WEB DELETES")
     execute_web_deletes()
