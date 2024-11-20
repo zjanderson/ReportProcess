@@ -74,30 +74,33 @@ def delete_web_emails_from_folder(driver, wait, folder_path):
         print(f"Error occurred in folder {folder_path}: {e}")
 
 def delete_current_folder(driver, wait, folder_path):
-    """Helper function to delete emails in the current folder"""
+    """Helper function to delete emails in the current folder using Empty folder"""
     try:
-        # Check if there are any emails in the folder
-        items_xpath = "//div[@role='gridcell']"
-        items = driver.find_elements(By.XPATH, items_xpath)
+        # Right click on the current folder to open context menu
+        folder_xpath = f"//div[contains(@class, 'treeNodeContent')]//span[text()='{folder_path.split('/')[-1]}']"
+        folder_element = wait.until(EC.element_to_be_clickable((By.XPATH, folder_xpath)))
         
-        if not items:
-            print(f"No emails found in {folder_path}")
-            return
-
-        # If emails exist, proceed with deletion
-        select_all = wait.until(EC.element_to_be_clickable(
-            (By.XPATH, "//div[@role='checkbox' and contains(@class, 'checkBox')]")))
-        select_all.click()
-
-        delete_button = wait.until(EC.element_to_be_clickable(
-            (By.XPATH, "//button[@name='Delete']")))
-        delete_button.click()
+        # Use ActionChains for right click
+        from selenium.webdriver.common.action_chains import ActionChains
+        actions = ActionChains(driver)
+        actions.context_click(folder_element).perform()
+        
+        # Click "Empty folder" in the context menu
+        empty_folder_button = wait.until(EC.element_to_be_clickable(
+            (By.XPATH, "//span[text()='Empty folder']")))
+        empty_folder_button.click()
+        
+        # Confirm the deletion in the popup
+        confirm_button = wait.until(EC.element_to_be_clickable(
+            (By.XPATH, "//button[@data-automation-id='confirmButton']")))
+        confirm_button.click()
         
         time.sleep(2)  # Wait for deletion to complete
 
     except TimeoutException:
-        print(f"No emails found in {folder_path}")
-
+        print(f"Could not empty folder {folder_path}")
+    except Exception as e:
+        print(f"Error emptying folder {folder_path}: {e}")
 def delete_all_subfolders(driver, wait):
     """Helper function to recursively delete emails from all subfolders"""
     try:
