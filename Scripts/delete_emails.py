@@ -13,7 +13,7 @@ DELETE_FOLDERS = [
     "Inbox/Fresh Beef", 
     "Inbox/Coverage", 
     "Inbox/BluePrism",
-    "Inbox/National Accts/Chik Fil A/*"
+    "Inbox/National Accts/Chik Fil A/*",
     "Deleted Items", 
     ]
 
@@ -52,10 +52,94 @@ def execute_app_deletes():
         delete_app_emails_from_folder(folder)
 
 
-def delete_web_emails_from_folder(folder_path):
+def delete_web_emails_from_folder(driver, wait, folder_path):
+    try:
+        # Handle nested folders
+        folders = folder_path.split('/')
+        
+        # Navigate to the parent folder (everything before *)
+        for folder in folders:
+            if folder == '*':
+                # If we hit *, we need to process all subfolders
+                return delete_all_subfolders(driver, wait)
+            
+            folder_xpath = f"//div[contains(@class, 'treeNodeContent')]//span[text()='{folder}']"
+            folder_element = wait.until(EC.element_to_be_clickable((By.XPATH, folder_xpath)))
+            folder_element.click()
+            time.sleep(1)
+
+        # Process current folder if no wildcard
+        delete_current_folder(driver, wait, folder_path)
+
+    except TimeoutException as e:
+        print(f"Timeout waiting for element in folder {folder_path}: {e}")
+    except Exception as e:
+        print(f"Error occurred in folder {folder_path}: {e}")
+
+def delete_current_folder(driver, wait, folder_path):
+    """Helper function to delete emails in the current folder"""
+    try:
+        # Check if there are any emails in the folder
+        items_xpath = "//div[@role='gridcell']"
+        items = driver.find_elements(By.XPATH, items_xpath)
+        
+        if not items:
+            print(f"No emails found in {folder_path}")
+            return
+
+        # If emails exist, proceed with deletion
+        select_all = wait.until(EC.element_to_be_clickable(
+            (By.XPATH, "//div[@role='checkbox' and contains(@class, 'checkBox')]")))
+        select_all.click()
+
+        delete_button = wait.until(EC.element_to_be_clickable(
+            (By.XPATH, "//button[@name='Delete']")))
+        delete_button.click()
+        
+        time.sleep(2)  # Wait for deletion to complete
+
+    except TimeoutException:
+        print(f"No emails found in {folder_path}")
+
+def delete_all_subfolders(driver, wait):
+    """Helper function to recursively delete emails from all subfolders"""
+    try:
+        # Find all subfolders in current view
+        subfolder_xpath = "//div[contains(@class, 'treeNodeContent')]//span"
+        subfolders = driver.find_elements(By.XPATH, subfolder_xpath)
+        
+        if not subfolders:
+            print("No subfolders found")
+            return
+
+        # Store folder names as clicking will refresh the DOM
+        folder_names = [folder.text for folder in subfolders]
+        
+        for folder_name in folder_names:
+            try:
+                # Click the subfolder
+                folder_xpath = f"//div[contains(@class, 'treeNodeContent')]//span[text()='{folder_name}']"
+                folder_element = wait.until(EC.element_to_be_clickable((By.XPATH, folder_xpath)))
+                folder_element.click()
+                time.sleep(1)
+
+                # Delete emails in this subfolder
+                delete_current_folder(driver, wait, folder_name)
+                
+                # Optional: recursively check for nested subfolders
+                delete_all_subfolders(driver, wait)
+                
+            except Exception as e:
+                print(f"Error processing subfolder {folder_name}: {e}")
+                continue
+
+    except Exception as e:
+        print(f"Error in delete_all_subfolders: {e}")
+
+def execute_web_deletes():
     driver = webdriver.Edge()
     wait = WebDriverWait(driver, 20)  # 20 second timeout
-
+    
     try:
         driver.get("https://outlook.office.com/")
         driver.maximize_window()
@@ -63,35 +147,15 @@ def delete_web_emails_from_folder(folder_path):
         # Wait for email interface to load (after login)
         wait.until(EC.presence_of_element_located((By.CLASS_NAME, "ms-FocusZone")))
 
-        # Handle nested folders
-        folders = folder_path.split('/')
-        for folder in folders:
-            # More robust folder selection
-            folder_xpath = f"//div[contains(@class, 'treeNodeContent')]//span[text()='{folder}']"
-            folder_element = wait.until(EC.element_to_be_clickable((By.XPATH, folder_xpath)))
-            folder_element.click()
-
-        # Wait for and select all emails
-        select_all = wait.until(EC.element_to_be_clickable(
-            (By.XPATH, "//div[@role='checkbox' and contains(@class, 'checkBox')]")))
-        select_all.click()
-
-        # Wait for and click delete
-        delete_button = wait.until(EC.element_to_be_clickable(
-            (By.XPATH, "//button[@name='Delete']")))
-        delete_button.click()
-
-    except TimeoutException as e:
-        print(f"Timeout waiting for element: {e}")
+        for folder in DELETE_FOLDERS:
+            print(folder)
+            delete_web_emails_from_folder(driver,wait, folder)
+            
     except Exception as e:
-        print(f"Error occurred: {e}")
+        print(f"Error occurred during execution: {e}")
     finally:
         driver.quit()
 
-def execute_web_deletes():
-    for folder in DELETE_FOLDERS:
-        print(folder)
-        delete_web_emails_from_folder(folder)
 
 if __name__ == "__main__":
     # execute_app_deletes()
