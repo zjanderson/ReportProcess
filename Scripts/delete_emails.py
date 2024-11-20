@@ -32,11 +32,11 @@ def delete_emails_from_folder(folder_path):
 
 DELETE_FOLDERS = [
     "Deleted Items", 
-    "Weather Updates", 
-    "Fresh Beef", 
-    "Coverage", 
-    "BluePrism"
-    "National Accts/Chik Fil A/*"
+    "Inbox/Weather Updates", 
+    "Inbox/Fresh Beef", 
+    "Inbox/Coverage", 
+    "Inbox/BluePrism",
+    "Inbox/National Accts/Chik Fil A/*"
     ]
 
 def execute_deletes():
