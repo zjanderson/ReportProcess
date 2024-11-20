@@ -1,32 +1,42 @@
 import win32com.client
 
-def delete_emails_from_folder(folder_name):
+def delete_emails_from_folder(folder_path):
     outlook = win32com.client.Dispatch("Outlook.Application")
     namespace = outlook.GetNamespace("MAPI")
     inbox = namespace.Folders.Item("zanderson@armada.net")
-    folder = inbox.Folders.Item(folder_name)
-   
-    for item in list(folder.Items):
-        item.Delete()
+    
+    # Handle wildcard pattern
+    if '*' in folder_path:
+        parent_path = folder_path.replace('/*', '')
+        folders = parent_path.split('/')
+        current_folder = inbox
+        
+        # Navigate to parent folder
+        for folder in folders:
+            current_folder = current_folder.Folders.Item(folder)
+            
+        # Delete from all subfolders
+        for subfolder in current_folder.Folders:
+            for item in list(subfolder.Items):
+                item.Delete()
+    else:
+        # Original logic for specific folders
+        folders = folder_path.split('/')
+        current_folder = inbox
+        for folder in folders:
+            current_folder = current_folder.Folders.Item(folder)
+        
+        for item in list(current_folder.Items):
+            item.Delete()
+
 
 DELETE_FOLDERS = [
     "Deleted Items", 
     "Weather Updates", 
-    "QCD", 
-    "Perishables", 
-    "McLane CFA", 
-    "MB CFA", 
-    "FA CFA", 
-    "CFA PR", 
-    "CFA Hubs", 
-    "CFA Hormel", 
-    "CFA Contingency", 
-    "CFA Hawaii", 
-    "CFA Canada", 
-    "2.0 CFA", 
     "Fresh Beef", 
     "Coverage", 
     "BluePrism"
+    "National Accts/Chik Fil A/*"
     ]
 
 def execute_deletes():
