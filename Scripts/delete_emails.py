@@ -31,10 +31,9 @@ def delete_app_emails_from_folder(folder_path):
         for folder in folders:
             current_folder = current_folder.Folders.Item(folder)
             
-        # Delete from all subfolders
+        # Empty all subfolders
         for subfolder in current_folder.Folders:
-            for item in list(subfolder.Items):
-                item.Delete()
+            subfolder.Items.Clear()  # This is equivalent to "Empty Folder"
     else:
         # Original logic for specific folders
         folders = folder_path.split('/')
@@ -42,8 +41,7 @@ def delete_app_emails_from_folder(folder_path):
         for folder in folders:
             current_folder = current_folder.Folders.Item(folder)
         
-        for item in list(current_folder.Items):
-            item.Delete()
+        current_folder.Items.Clear()  # Empty the folder
 
 def execute_app_deletes():
     for folder in DELETE_FOLDERS:
@@ -152,8 +150,6 @@ def execute_web_deletes():
             
     except Exception as e:
         print(f"Error occurred during execution: {e}")
-    finally:
-        driver.quit()
 
 
 if __name__ == "__main__":
