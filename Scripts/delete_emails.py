@@ -33,7 +33,9 @@ def delete_app_emails_from_folder(folder_path):
             
         # Empty all subfolders
         for subfolder in current_folder.Folders:
-            subfolder.Items.Clear()  # This is equivalent to "Empty Folder"
+            while subfolder.Items.Count > 0:
+                # Delete each item individually
+                subfolder.Items.Item(1).Delete()
     else:
         # Original logic for specific folders
         folders = folder_path.split('/')
@@ -41,8 +43,9 @@ def delete_app_emails_from_folder(folder_path):
         for folder in folders:
             current_folder = current_folder.Folders.Item(folder)
         
-        current_folder.Items.Clear()  # Empty the folder
-
+        # Delete items one by one instead of using Clear()
+        while current_folder.Items.Count > 0:
+            current_folder.Items.Item(1).Delete()
 def execute_app_deletes():
     for folder in DELETE_FOLDERS:
         print(folder)
