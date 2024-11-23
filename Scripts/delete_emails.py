@@ -8,13 +8,45 @@ import time
 
 
 DELETE_FOLDERS = [
-    "Inbox/Weather Updates", 
-    "Inbox/Fresh Beef", 
-    "Inbox/Coverage", 
-    "Inbox/BluePrism",
-    "Inbox/National Accts/Chik Fil A/*",
+    # "Inbox/Weather Updates", 
+    # "Inbox/Fresh Beef", 
+    # "Inbox/Coverage", 
+    # "Inbox/BluePrism",
+    # "Inbox/National Accts/Chik Fil A/*",
     "Deleted Items", 
     ]
+
+FOLDER_TO_CLASS = {
+    "Inbox/Weather Updates" : "gtcPn _8g73 LPIso", 
+    # "Inbox/Fresh Beef" : "", 
+    # "Inbox/Coverage" : "", 
+    # "Inbox/BluePrism" : "",
+    # "Inbox/National Accts/Chik Fil A/*" : "",
+    # "Inbox/National Accts/Chik Fil A/*" : "",
+    # "Inbox/National Accts/Chik Fil A/*" : "",
+    # "Inbox/National Accts/Chik Fil A/*" : "",
+    # "Inbox/National Accts/Chik Fil A/*" : "",
+    # "Inbox/National Accts/Chik Fil A/*" : "",
+    # "Inbox/National Accts/Chik Fil A/*" : "",
+    # "Inbox/National Accts/Chik Fil A/*" : "",
+    # "Inbox/National Accts/Chik Fil A/*" : "",
+    # "Inbox/National Accts/Chik Fil A/*" : "",
+    # "Deleted Items" : "", 
+}
+
+def click_folder(folder_path):
+        # Initialize driver and wait here since we're calling click_folder directly
+    driver = webdriver.Edge()
+    wait = WebDriverWait(driver, 20)
+    driver.get("https://outlook.office.com/")
+    driver.maximize_window()
+    time.sleep(20)
+    folder_class = FOLDER_TO_CLASS[folder_path]
+    inbox_element = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, folder_class)))
+
+    # Click on the inbox
+    inbox_element.click()
+    time.sleep(5)
 
 def delete_app_emails_from_folder(folder_path):
     outlook = win32com.client.Dispatch("Outlook.Application")
@@ -54,27 +86,50 @@ def execute_app_deletes():
 
 def delete_web_emails_from_folder(driver, wait, folder_path):
     try:
-        # Handle nested folders
         folders = folder_path.split('/')
+        print(f"Attempting to navigate folders: {folders}")
         
-        # Navigate to the parent folder (everything before *)
         for folder in folders:
             if folder == '*':
-                # If we hit *, we need to process all subfolders
                 return delete_all_subfolders(driver, wait)
             
+            print(f"\nTrying to find folder: {folder}")
             folder_xpath = f"//div[contains(@class, 'treeNodeContent')]//span[text()='{folder}']"
-            folder_element = wait.until(EC.element_to_be_clickable((By.XPATH, folder_xpath)))
-            folder_element.click()
-            time.sleep(1)
-
+            print(f"Using xpath: {folder_xpath}")
+            
+            try:
+                # First check if element exists
+                print("Checking if element exists...")
+                element_present = EC.presence_of_element_located((By.XPATH, folder_xpath))
+                wait.until(element_present)
+                
+                # Then wait for it to be clickable
+                print("Waiting for element to be clickable...")
+                folder_element = wait.until(EC.element_to_be_clickable((By.XPATH, folder_xpath)))
+                
+                print(f"Found element: {folder_element.text}")
+                folder_element.click()
+                print(f"Successfully clicked on: {folder}")
+                time.sleep(2)  # Increased sleep time to allow for folder expansion
+                
+            except TimeoutException:
+                print(f"❌ Timeout finding/clicking folder: {folder}")
+                print("Available elements in current view:")
+                elements = driver.find_elements(By.XPATH, "//div[contains(@class, 'treeNodeContent')]//span")
+                for elem in elements:
+                    print(f"  - {elem.text}")
+                raise
+            
         # Process current folder if no wildcard
         delete_current_folder(driver, wait, folder_path)
 
     except TimeoutException as e:
         print(f"Timeout waiting for element in folder {folder_path}: {e}")
+        raise
     except Exception as e:
         print(f"Error occurred in folder {folder_path}: {e}")
+        raise
+
 
 def delete_current_folder(driver, wait, folder_path):
     """Helper function to delete emails in the current folder using Empty folder"""
@@ -146,6 +201,7 @@ def execute_web_deletes():
     try:
         driver.get("https://outlook.office.com/")
         driver.maximize_window()
+        time.sleep(20)
         
         # Wait for email interface to load (after login)
         wait.until(EC.presence_of_element_located((By.CLASS_NAME, "ms-FocusZone")))
@@ -159,7 +215,8 @@ def execute_web_deletes():
 
 
 if __name__ == "__main__":
-    execute_app_deletes()
-    time.sleep(60)
+#    execute_app_deletes()
+#    time.sleep(60)
     print("WEB DELETES")
-    execute_web_deletes()
+    # execute_web_deletes()
+    click_folder("Inbox/Weather Updates")
