@@ -1,20 +1,19 @@
 import win32com.client
 import re
-import spacy
+import nltk
+from nltk.tokenize import word_tokenize
 
-# Load spaCy model
-nlp = spacy.load("en_core_web_sm")
 
 def extract_numbers(text):
     """
-    Extract sequences of at least 5 numerical digits from the text using spaCy.
+    Extract sequences of at least 5 numerical digits from the text using NLTK.
     """
     numbers = []
-    doc = nlp(text)
-    for token in doc:
-        # Check if the token is a digit and has at least 5 numerical digits
-        if token.like_num and len(token.text) >= 5:
-            numbers.append(token.text)
+    tokens = word_tokenize(text)
+    for token in tokens:
+        # Check if the token is numeric and has at least 5 digits
+        if token.isdigit() and len(token) >= 5:
+            numbers.append(token)
     return numbers
 
 def get_favorites_folders(outlook):
