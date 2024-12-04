@@ -3,34 +3,42 @@ import re
 import nltk
 from nltk.tokenize import word_tokenize
 
+try:
+    nltk.download('punkt')
+except Exception as e:
+    print(f"Error downloading NLTK data: {e}")
+
 
 def extract_numbers(text):
     """
-    Extract sequences of at least 5 numerical digits from the text using NLTK.
+    Extract sequences of at least 5 numerical digits from the text.
     """
-    numbers = []
-    tokens = word_tokenize(text)
-    for token in tokens:
-        # Check if the token is numeric and has at least 5 digits
-        if token.isdigit() and len(token) >= 5:
-            numbers.append(token)
-    return numbers
+    numbers = re.findall(r'\b\d{5,}\b', text)
+    return set(numbers)
 
 def get_favorites_folders(outlook):
     """
-    Get folders marked as 'Favorites' in Outlook.
+    Get folders currently marked as 'Favorites' in Outlook's navigation pane.
     """
-    namespace = outlook.GetNamespace("MAPI")
-    favorites = []
-    for folder in namespace.Folders:
-        try:
-            # Check if a folder is marked as a 'Favorite'
-            for subfolder in folder.Folders:
-                if subfolder.Favorites:
-                    favorites.append(subfolder)
-        except AttributeError:
-            continue
-    return favorites
+    try:
+        # Access the Navigation Pane
+        nav_pane = outlook.ActiveExplorer().NavigationPane
+        # Access the Favorites navigation module
+        nav_module = nav_pane.Modules.GetNavigationModule(0)  # 0 is olModuleMail
+        # Get the actual Favorites folder group
+        favorites_group = nav_module.NavigationGroups('Favorites')
+        
+        print("\nFavorites folders found:")
+        favorites = []
+        for nav_folder in favorites_group.NavigationFolders:
+            print(f" - {nav_folder.Folder.Name}")
+            favorites.append(nav_folder.Folder)
+            
+        return favorites
+        
+    except Exception as e:
+        print(f"Error accessing Favorites: {e}")
+        return []
 
 def process_emails_in_favorites():
     """
@@ -47,6 +55,9 @@ def process_emails_in_favorites():
         try:
             items = folder.Items
             items = items.Restrict("[Unread] = True")  # Filter unread emails
+
+            # Print the number of unread emails in the current folder
+            print(f"\nChecking folder: '{folder.Name}' - Found {len(items)} unread emails")
             
             for item in items:
                 if item.Class == 43:  # MailItem
@@ -56,7 +67,7 @@ def process_emails_in_favorites():
                     # Combine subject and body for processing
                     text = f"{subject} {body}"
 
-                    # Extract numbers using spaCy
+                    # Extract numbers
                     numbers = extract_numbers(text)
 
                     if numbers:
