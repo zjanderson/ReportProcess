@@ -8,30 +8,30 @@ import time
 
 
 DELETE_FOLDERS = [
-    # "Inbox/Weather Updates", 
-    # "Inbox/Fresh Beef", 
-    # "Inbox/Coverage", 
-    # "Inbox/BluePrism",
-    # "Inbox/National Accts/Chik Fil A/*",
+    "Inbox/Weather Updates", 
+    "Inbox/Fresh Beef", 
+    "Inbox/Coverage", 
+    "Inbox/BluePrism",
+    "Inbox/National Accts/Chik Fil A/*",
     "Deleted Items", 
     ]
 
 FOLDER_TO_CLASS = {
     "Inbox/Weather Updates" : "gtcPn _8g73 LPIso", 
-    # "Inbox/Fresh Beef" : "", 
-    # "Inbox/Coverage" : "", 
-    # "Inbox/BluePrism" : "",
-    # "Inbox/National Accts/Chik Fil A/*" : "",
-    # "Inbox/National Accts/Chik Fil A/*" : "",
-    # "Inbox/National Accts/Chik Fil A/*" : "",
-    # "Inbox/National Accts/Chik Fil A/*" : "",
-    # "Inbox/National Accts/Chik Fil A/*" : "",
-    # "Inbox/National Accts/Chik Fil A/*" : "",
-    # "Inbox/National Accts/Chik Fil A/*" : "",
-    # "Inbox/National Accts/Chik Fil A/*" : "",
-    # "Inbox/National Accts/Chik Fil A/*" : "",
-    # "Inbox/National Accts/Chik Fil A/*" : "",
-    # "Deleted Items" : "", 
+    "Inbox/Fresh Beef" : "", 
+    "Inbox/Coverage" : "", 
+    "Inbox/BluePrism" : "",
+    "Inbox/National Accts/Chik Fil A/*" : "",
+    "Inbox/National Accts/Chik Fil A/*" : "",
+    "Inbox/National Accts/Chik Fil A/*" : "",
+    "Inbox/National Accts/Chik Fil A/*" : "",
+    "Inbox/National Accts/Chik Fil A/*" : "",
+    "Inbox/National Accts/Chik Fil A/*" : "",
+    "Inbox/National Accts/Chik Fil A/*" : "",
+    "Inbox/National Accts/Chik Fil A/*" : "",
+    "Inbox/National Accts/Chik Fil A/*" : "",
+    "Inbox/National Accts/Chik Fil A/*" : "",
+    "Deleted Items" : "", 
 }
 
 def click_folder(folder_path):
