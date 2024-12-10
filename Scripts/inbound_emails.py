@@ -2,11 +2,31 @@ import win32com.client
 import re
 import nltk
 from nltk.tokenize import word_tokenize
+from nltk.tokenize import sent_tokenize
 
 try:
     nltk.download('punkt')
 except Exception as e:
     print(f"Error downloading NLTK data: {e}")
+
+def is_information_request(text):
+    """
+    Determine if the text contains a question or information request.
+    """
+    # Common question words and request phrases
+    question_indicators = [
+        '?', 'what', 'when', 'where', 'who', 'how', 'why', 'can you', 
+        'could you', 'please provide', 'please send', 'need to know',
+        'looking for', 'requesting', 'inquiry', 'question'
+    ]
+    
+    text = text.lower()
+    sentences = sent_tokenize(text)
+    
+    for sentence in sentences:
+        if any(indicator in sentence.lower() for indicator in question_indicators):
+            return True
+    return False
 
 
 def extract_numbers(text):
@@ -42,7 +62,7 @@ def get_favorites_folders(outlook):
 
 def process_emails_in_favorites():
     """
-    Process unread emails in all folders marked as 'Favorites' in Outlook.
+    Process unread emails that appear to request information in all folders marked as 'Favorites' in Outlook.
     Extract Bill of Lading, PO numbers, or Load IDs (at least 5 digits).
     """
     outlook = win32com.client.Dispatch("Outlook.Application")
@@ -67,17 +87,18 @@ def process_emails_in_favorites():
                     # Combine subject and body for processing
                     text = f"{subject} {body}"
 
-                    # Extract numbers
-                    numbers = extract_numbers(text)
+                    # Extract numbers if there's info request
+                    if is_information_request(text):
+                        numbers = extract_numbers(text)
 
-                    if numbers:
-                        matching_emails.append({
-                            "Sender": item.SenderName,
-                            "Subject": subject,
-                            "Numbers": numbers,
-                            "EntryID": item.EntryID,  # Store EntryID for future actions like Reply-All
-                            "Folder": folder.Name,
-                        })
+                        if numbers:
+                            matching_emails.append({
+                                "Sender": item.SenderName,
+                                "Subject": subject,
+                                "Numbers": numbers,
+                                "EntryID": item.EntryID,  # Store EntryID for future actions like Reply-All
+                                "Folder": folder.Name,
+                            })
 
         except Exception as e:
             print(f"Error processing folder {folder.Name}: {e}")
