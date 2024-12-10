@@ -41,8 +41,14 @@ def get_favorites_folders(outlook):
     Get folders currently marked as 'Favorites' in Outlook's navigation pane.
     """
     try:
+        # Get the active explorer if Outlook is open
+        explorer = outlook.Application.ActiveExplorer()
+        if not explorer:
+            # If no active explorer, try to get default folders
+            raise Exception("No active Outlook window found")
+            
         # Access the Navigation Pane
-        nav_pane = outlook.ActiveExplorer().NavigationPane
+        nav_pane = explorer.NavigationPane
         # Access the Favorites navigation module
         nav_module = nav_pane.Modules.GetNavigationModule(0)  # 0 is olModuleMail
         # Get the actual Favorites folder group
@@ -53,12 +59,20 @@ def get_favorites_folders(outlook):
         for nav_folder in favorites_group.NavigationFolders:
             print(f" - {nav_folder.Folder.Name}")
             favorites.append(nav_folder.Folder)
-            
+        
         return favorites
         
     except Exception as e:
         print(f"Error accessing Favorites: {e}")
-        return []
+        # Fallback: return default folders like Inbox
+        try:
+            namespace = outlook.GetNamespace("MAPI")
+            inbox = namespace.GetDefaultFolder(6)  # 6 is olFolderInbox
+            print("\nFalling back to Inbox only")
+            return [inbox]
+        except Exception as e2:
+            print(f"Fallback also failed: {e2}")
+            return []
 
 def process_emails_in_favorites():
     """
