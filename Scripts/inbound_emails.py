@@ -3,6 +3,13 @@ import re
 import nltk
 from nltk.tokenize import word_tokenize
 from nltk.tokenize import sent_tokenize
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import TimeoutException
+import time
 
 try:
     nltk.download('punkt')
@@ -120,6 +127,56 @@ def process_emails_in_favorites():
 
     return matching_emails
 
+def navigate_and_search(matching_emails):
+    """
+    Navigate to TMS and 4Kites and search using extracted numbers.
+    """
+    # Set up Selenium WebDriver (Edge, Chrome, or Firefox)
+    driver = webdriver.Edge()  # Replace with webdriver.Chrome() or webdriver.Firefox() as needed
+    wait = WebDriverWait(driver, 20)  # Adjust the timeout as needed
+
+    try:
+        # First Cloud Service
+        driver.get("https://cloudservice1.com")  # Replace with the first service's URL
+        print("Navigating to the first cloud service...")
+
+        # Log in (Assuming you're already logged in, otherwise implement login here)
+        # Example: Wait for login or dashboard page to load
+        wait.until(EC.presence_of_element_located((By.ID, "dashboard")))
+
+        for email in matching_emails:
+            for number in email["Numbers"]:
+                print(f"Searching for number {number} on TMS...")
+
+                # Example: Perform search
+                search_box = wait.until(EC.element_to_be_clickable((By.ID, "search-input")))  # Replace ID with the actual search box locator
+                search_box.clear()
+                search_box.send_keys(number)
+                search_box.send_keys(Keys.RETURN)
+                time.sleep(5)  # Wait for results to load
+
+        # Second Cloud Service
+        driver.get("https://cloudservice2.com")  # Replace with the second service's URL
+        print("Navigating to the second cloud service...")
+
+        for email in matching_emails:
+            for number in email["Numbers"]:
+                print(f"Searching for number {number} on Cloud Service 2...")
+
+                # Example: Perform search
+                search_box = wait.until(EC.element_to_be_clickable((By.NAME, "search")))  # Replace NAME with the actual search box locator
+                search_box.clear()
+                search_box.send_keys(number)
+                search_box.send_keys(Keys.RETURN)
+                time.sleep(5)  # Wait for results to load
+
+    except TimeoutException as e:
+        print(f"Timeout occurred: {e}")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+    finally:
+        driver.quit()  # Ensure the browser closes after execution
+
 
 # Main script
 if __name__ == "__main__":
@@ -132,3 +189,7 @@ if __name__ == "__main__":
         print(f"Numbers Found: {email['Numbers']}")
         print(f"Folder: {email['Folder']}")
         print("-" * 50)
+
+    # Use Selenium to navigate and search for numbers
+    navigate_and_search(matching_emails)
+
