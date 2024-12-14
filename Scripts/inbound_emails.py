@@ -137,10 +137,47 @@ def navigate_and_search(matching_emails):
 
     try:
         # First Cloud Service
-        driver.get("https://cloudservice1.com")  # Replace with the first service's URL
-        print("Navigating to the first cloud service...")
+        driver.get("https://armada.mercurygate.net/MercuryGate/login/mgLogin.jsp?inline=true")  # Replace with the first service's URL
+        print("Navigating to TMS MercuryGate...")
 
-        # Log in (Assuming you're already logged in, otherwise implement login here)
+        # Log in 
+        try:
+            # Bitwarden should theoretically be able to autofill UN and PW
+            # username_field = wait.until(EC.presence_of_element_located((By.ID, "userId")))
+            # username_field.send_keys("YOUR_USERNAME")  # Replace with actual username
+            
+            # # Find password field and enter credentials
+            # password_field = driver.find_element(By.ID, "password")
+            # password_field.send_keys("YOUR_PASSWORD")  # Replace with actual password
+            
+            # Click the Sign In button
+            sign_in_button = driver.find_element(By.ID, "signInButton")
+            sign_in_button.click()
+            
+            # Wait for successful login (adjust the selector based on a element that appears after login)
+            wait.until(EC.presence_of_element_located((By.ID, "dashboard")))
+            print("Successfully logged into MercuryGate")
+            
+        except Exception as e:
+            print(f"Login failed: {e}")
+            raise
+        
+        try:
+            # Wait for the <div> containing the <span> with text "Loads" to be clickable
+            wait = WebDriverWait(driver, 10)
+            loads_div = wait.until(
+                EC.element_to_be_clickable((By.XPATH, "//div[span[text()='Loads']]"))
+            )
+            
+            # Click the <div>
+            loads_div.click()
+
+        except Exception as e:
+            print(f"Error: {e}")
+
+        finally:
+            driver.quit()
+
         # Example: Wait for login or dashboard page to load
         wait.until(EC.presence_of_element_located((By.ID, "dashboard")))
 
