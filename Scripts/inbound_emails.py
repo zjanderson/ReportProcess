@@ -137,21 +137,21 @@ def navigate_and_search(matching_emails):
 
     try:
         # First Cloud Service
-        driver.get("https://armada.mercurygate.net/MercuryGate/login/mgLogin.jsp?inline=true")  # Replace with the first service's URL
+        driver.get("https://qa-armada.mercurygate.net/MercuryGate/login/spLogin.jsp?inline=true")  # This is test environemnt TMS, real URL is https://armada.mercurygate.net/MercuryGate/login/mgLogin.jsp?inline=true
         print("Navigating to TMS MercuryGate...")
 
         # Log in 
         try:
             # Bitwarden should theoretically be able to autofill UN and PW
-            # username_field = wait.until(EC.presence_of_element_located((By.ID, "userId")))
-            # username_field.send_keys("YOUR_USERNAME")  # Replace with actual username
+            username_field = wait.until(EC.presence_of_element_located((By.ID, "UserID")))
+            username_field.send_keys("practice")  # TMS test environment un is practice
             
             # # Find password field and enter credentials
-            # password_field = driver.find_element(By.ID, "password")
-            # password_field.send_keys("YOUR_PASSWORD")  # Replace with actual password
+            password_field = driver.find_element(By.ID, "Password")
+            password_field.send_keys("Armada1@")  # TMS test environment is Armada1@
             
             # Click the Sign In button
-            sign_in_button = driver.find_element(By.ID, "signInButton")
+            sign_in_button = driver.find_element(By.NAME, "submitbutton")
             sign_in_button.click()
             
             # Wait for successful login (adjust the selector based on a element that appears after login)
