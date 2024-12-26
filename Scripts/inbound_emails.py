@@ -151,6 +151,19 @@ def navigate_to_loads(driver):
         print(f"Navigation to Loads page failed: {e}")
         raise
 
+def search_in_tms(matching_emails, wait):
+    for email in matching_emails:
+        for number in email["Numbers"]:
+            print(f"Searching for number {number} on TMS...")
+
+            # Example: Perform search
+            search_box = wait.until(EC.element_to_be_clickable(By.XPATH, '/html/body/form/table/tbody/tr/td[2]/input[1]'))
+            search_box.clear()
+            search_box.send_keys(number)
+            search_box.send_keys(Keys.RETURN)
+            time.sleep(5)  # Wait for results to load
+
+
 def search_in_second_service(driver, wait, matching_emails):
     """
     Search for numbers in the second cloud service.
@@ -240,7 +253,6 @@ def search_in_second_service(driver, wait, matching_emails):
     # finally:
     #     driver.quit()  # Ensure the browser closes after execution
 
-
 # Main script
 if __name__ == "__main__":
     matching_emails = process_emails_in_favorites()
@@ -254,5 +266,14 @@ if __name__ == "__main__":
         print("-" * 50)
 
     # Use Selenium to navigate and search for numbers
-    navigate_and_search(matching_emails)
+    driver = webdriver.Edge()
+    wait = WebDriverWait(driver, 20)
+
+    try:
+        login_to_tms(driver, wait)
+        navigate_to_loads(driver)
+        search_in_tms(matching_emails, wait)
+
+    finally:
+        driver.quit()
 
