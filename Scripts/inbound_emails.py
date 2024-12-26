@@ -16,26 +16,6 @@ try:
 except Exception as e:
     print(f"Error downloading NLTK data: {e}")
 
-def is_information_request(text):
-    """
-    Determine if the text contains a question or information request.
-    """
-    # Common question words and request phrases
-    question_indicators = [
-        '?', 'what', 'when', 'where', 'who', 'how', 'why', 'can you', 
-        'could you', 'please provide', 'please send', 'need to know',
-        'looking for', 'requesting', 'inquiry', 'question'
-    ]
-    
-    text = text.lower()
-    sentences = sent_tokenize(text)
-    
-    for sentence in sentences:
-        if any(indicator in sentence.lower() for indicator in question_indicators):
-            return True
-    return False
-
-
 def extract_numbers(text):
     """
     Extract sequences of at least 5 numerical digits from the text.
@@ -87,39 +67,37 @@ def process_emails_in_favorites():
     Extract Bill of Lading, PO numbers, or Load IDs (at least 5 digits).
     """
     outlook = win32com.client.Dispatch("Outlook.Application")
-    namespace = outlook.GetNamespace("MAPI")
     favorites_folders = get_favorites_folders(outlook)
 
     matching_emails = []
 
     for folder in favorites_folders:
         try:
-            items = folder.Items
-            items = items.Restrict("[Unread] = True")  # Filter unread emails
+            emails = folder.Items
+            emails = emails.Restrict("[Unread] = True")  # Filter unread emails
 
             # Print the number of unread emails in the current folder
-            print(f"\nChecking folder: '{folder.Name}' - Found {len(items)} unread emails")
+            print(f"\nChecking folder: '{folder.Name}' - Found {len(emails)} unread emails")
             
-            for item in items:
-                if item.Class == 43:  # MailItem
-                    subject = item.Subject or ""
-                    body = item.Body or ""
+            for email in emails:
+                if email.Class == 43:  # Mailitem
+                    subject = email.Subject or ""
+                    body = email.Body or ""
 
                     # Combine subject and body for processing
                     text = f"{subject} {body}"
 
-                    # Extract numbers if there's info request
-                    if is_information_request(text):
-                        numbers = extract_numbers(text)
+                    # Extract numbers
+                    numbers = extract_numbers(text)
 
-                        if numbers:
-                            matching_emails.append({
-                                "Sender": item.SenderName,
-                                "Subject": subject,
-                                "Numbers": numbers,
-                                "EntryID": item.EntryID,  # Store EntryID for future actions like Reply-All
-                                "Folder": folder.Name,
-                            })
+                    if numbers:
+                        matching_emails.append({
+                            "Sender": email.SenderName,
+                            "Subject": subject,
+                            "Numbers": numbers,
+                            "EntryID": email.EntryID,  # Store EntryID for future actions like Reply-All
+                            "Folder": folder.Name,
+                        })
 
         except Exception as e:
             print(f"Error processing folder {folder.Name}: {e}")
@@ -162,16 +140,7 @@ def navigate_and_search(matching_emails):
 
             # Click the Sign In button
             click_button_by_XPATH(driver, '//input[@value="    Sign In    "]')
-            # wait = WebDriverWait(driver, 10)
-            # sign_in_button = wait.until(
-            #     EC.element_to_be_clickable((By.XPATH, '//input[@value="    Sign In    "]'))
-            #     )
-
-            # # Click the button
-            # sign_in_button.click()
             
-            # Wait for successful login (adjust the selector based on a element that appears after login)
-            wait.until(EC.presence_of_element_located((By.ID, "dashboard")))
             print("Successfully logged into MercuryGate")
             
         except Exception as e:
@@ -184,12 +153,6 @@ def navigate_and_search(matching_emails):
 
         except Exception as e:
             print(f"Error: {e}")
-
-        finally:
-            driver.quit()
-
-        # # Example: Wait for login or dashboard page to load
-        # wait.until(EC.presence_of_element_located((By.ID, "dashboard")))
 
         for email in matching_emails:
             for number in email["Numbers"]:
