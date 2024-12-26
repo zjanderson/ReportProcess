@@ -10,6 +10,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 import time
+from Supporting_Documents.credentials import USERNAME, PASSWORD
 
 try:
     nltk.download('punkt')
@@ -132,11 +133,11 @@ def navigate_and_search(matching_emails):
         try:
             # need to input hardcoded un and pw fields
             username_field = wait.until(EC.presence_of_element_located((By.ID, "UserId")))
-            username_field.send_keys("zachary.anderson")  # TMS test environment un is practice
+            username_field.send_keys(USERNAME)  # TMS test environment un is practice
             
             # # Find password field and enter credentials
             password_field = driver.find_element(By.ID, "Password")
-            password_field.send_keys("di&6Rwt2#f7PB6")  # TMS test environment is Armada1@
+            password_field.send_keys(PASSWORD)  # TMS test environment is Armada1@
 
             # Click the Sign In button
             click_button_by_XPATH(driver, '//input[@value="    Sign In    "]')
