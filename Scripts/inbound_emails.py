@@ -115,78 +115,130 @@ def click_button_by_XPATH(driver, element_xpath):
 
     target_element.click()
 
+def login_to_tms(driver, wait):
+    """
+    Log in to TMS MercuryGate
+    """
+    try:
+        # need to input hardcoded un and pw fields
+        username_field = wait.until(EC.presence_of_element_located((By.ID, "UserId")))
+        username_field.send_keys(USERNAME)
+        
+        # # Find password field and enter credentials
+        password_field = driver.find_element(By.ID, "Password")
+        password_field.send_keys(PASSWORD)
 
-def navigate_and_search(matching_emails):
-    """
-    Navigate to TMS and 4Kites and search using extracted numbers.
-    """
-    # Set up Selenium WebDriver (Edge, Chrome, or Firefox)
-    driver = webdriver.Edge()  # Replace with webdriver.Chrome() or webdriver.Firefox() as needed
-    wait = WebDriverWait(driver, 20)  # Adjust the timeout as needed
+        # Click the Sign In button
+        click_button_by_XPATH(driver, '//input[@value="    Sign In    "]')
+        
+        print("Successfully logged into MercuryGate")
+
+
+    except Exception as e:
+        print(f"Login failed: {e}")
+        raise
+
+
+def navigate_to_loads(driver):
 
     try:
-        # First Cloud Service
-        driver.get("https://armada.mercurygate.net/MercuryGate/login/mgLogin.jsp?inline=true")
-        print("Navigating to TMS MercuryGate...")
-
-        # Log in 
-        try:
-            # need to input hardcoded un and pw fields
-            username_field = wait.until(EC.presence_of_element_located((By.ID, "UserId")))
-            username_field.send_keys(USERNAME)  # TMS test environment un is practice
-            
-            # # Find password field and enter credentials
-            password_field = driver.find_element(By.ID, "Password")
-            password_field.send_keys(PASSWORD)  # TMS test environment is Armada1@
-
-            # Click the Sign In button
-            click_button_by_XPATH(driver, '//input[@value="    Sign In    "]')
-            
-            print("Successfully logged into MercuryGate")
-            
-        except Exception as e:
-            print(f"Login failed: {e}")
-            raise
+        # Click the Loads button
+        click_button_by_XPATH(driver, '/html/body/table/tbody/tr[2]/td/div[5]/span')
         
-        try:
-            # Wait for the <div> containing the <span> with text "Loads" to be clickable
-            click_button_by_XPATH(driver, '//*[@id="__AppFrameBaseTable"]/tbody/tr[2]/td/div[5]/span')
-
-        except Exception as e:
-            print(f"Error: {e}")
-
-        for email in matching_emails:
-            for number in email["Numbers"]:
-                print(f"Searching for number {number} on TMS...")
-
-                # Example: Perform search
-                search_box = wait.until(EC.element_to_be_clickable((By.ID, "search-input")))  # Replace ID with the actual search box locator
-                search_box.clear()
-                search_box.send_keys(number)
-                search_box.send_keys(Keys.RETURN)
-                time.sleep(5)  # Wait for results to load
-
-        # Second Cloud Service
-        driver.get("https://cloudservice2.com")  # Replace with the second service's URL
-        print("Navigating to the second cloud service...")
-
-        for email in matching_emails:
-            for number in email["Numbers"]:
-                print(f"Searching for number {number} on Cloud Service 2...")
-
-                # Example: Perform search
-                search_box = wait.until(EC.element_to_be_clickable((By.NAME, "search")))  # Replace NAME with the actual search box locator
-                search_box.clear()
-                search_box.send_keys(number)
-                search_box.send_keys(Keys.RETURN)
-                time.sleep(5)  # Wait for results to load
-
-    except TimeoutException as e:
-        print(f"Timeout occurred: {e}")
+        print("Successfully navigated to Loads page")
+    
     except Exception as e:
-        print(f"An error occurred: {e}")
-    finally:
-        driver.quit()  # Ensure the browser closes after execution
+        print(f"Navigation to Loads page failed: {e}")
+        raise
+
+def search_in_second_service(driver, wait, matching_emails):
+    """
+    Search for numbers in the second cloud service.
+    """
+    driver.get("https://cloudservice2.com")  # Replace with the second service's URL
+    print("Navigating to the second cloud service...")
+
+    for email in matching_emails:
+        for number in email["Numbers"]:
+            print(f"Searching for number {number} on Cloud Service 2...")
+            search_box = wait.until(EC.element_to_be_clickable((By.NAME, "search")))  # Replace NAME with the actual search box locator
+            search_box.clear()
+            search_box.send_keys(number)
+            search_box.send_keys(Keys.RETURN)
+            time.sleep(5)  # Wait for results to load
+
+
+# def navigate_and_search(matching_emails):
+    # """
+    # Navigate to TMS and 4Kites and search using extracted numbers.
+    # """
+    # # Set up Selenium WebDriver (Edge, Chrome, or Firefox)
+    # driver = webdriver.Edge()  # Replace with webdriver.Chrome() or webdriver.Firefox() as needed
+    # wait = WebDriverWait(driver, 20)  # Adjust the timeout as needed
+
+    # try:
+    #     # First Cloud Service
+    #     driver.get("https://armada.mercurygate.net/MercuryGate/login/mgLogin.jsp?inline=true")
+    #     print("Navigating to TMS MercuryGate...")
+
+    #     # Log in 
+    #     try:
+    #         # need to input hardcoded un and pw fields
+    #         username_field = wait.until(EC.presence_of_element_located((By.ID, "UserId")))
+    #         username_field.send_keys(USERNAME)  # TMS test environment un is practice
+            
+    #         # # Find password field and enter credentials
+    #         password_field = driver.find_element(By.ID, "Password")
+    #         password_field.send_keys(PASSWORD)  # TMS test environment is Armada1@
+
+    #         # Click the Sign In button
+    #         click_button_by_XPATH(driver, '//input[@value="    Sign In    "]')
+            
+    #         print("Successfully logged into MercuryGate")
+            
+    #     except Exception as e:
+    #         print(f"Login failed: {e}")
+    #         raise
+        
+    #     try:
+    #         # Wait for the <div> containing the <span> with text "Loads" to be clickable
+    #         click_button_by_XPATH(driver, '//*[@id="__AppFrameBaseTable"]/tbody/tr[2]/td/div[5]/span')
+
+    #     except Exception as e:
+    #         print(f"Error: {e}")
+
+    #     for email in matching_emails:
+    #         for number in email["Numbers"]:
+    #             print(f"Searching for number {number} on TMS...")
+
+    #             # Example: Perform search
+    #             search_box = wait.until(EC.element_to_be_clickable((By.ID, "search-input")))  # Replace ID with the actual search box locator
+    #             search_box.clear()
+    #             search_box.send_keys(number)
+    #             search_box.send_keys(Keys.RETURN)
+    #             time.sleep(5)  # Wait for results to load
+
+    #     # Second Cloud Service
+    #     driver.get("https://cloudservice2.com")  # Replace with the second service's URL
+    #     print("Navigating to the second cloud service...")
+
+    #     for email in matching_emails:
+    #         for number in email["Numbers"]:
+    #             print(f"Searching for number {number} on Cloud Service 2...")
+
+    #             # Example: Perform search
+    #             search_box = wait.until(EC.element_to_be_clickable((By.NAME, "search")))  # Replace NAME with the actual search box locator
+    #             search_box.clear()
+    #             search_box.send_keys(number)
+    #             search_box.send_keys(Keys.RETURN)
+    #             time.sleep(5)  # Wait for results to load
+
+    # except TimeoutException as e:
+    #     print(f"Timeout occurred: {e}")
+    # except Exception as e:
+    #     print(f"An error occurred: {e}")
+    # finally:
+    #     driver.quit()  # Ensure the browser closes after execution
 
 
 # Main script
