@@ -127,6 +127,16 @@ def process_emails_in_favorites():
 
     return matching_emails
 
+def click_button_by_XPATH(driver, element_xpath):
+
+    wait = WebDriverWait(driver, 10)
+    target_element = wait.until(
+        EC.element_to_be_clickable((By.XPATH, element_xpath))
+    )
+
+    target_element.click()
+
+
 def navigate_and_search(matching_emails):
     """
     Navigate to TMS and 4Kites and search using extracted numbers.
@@ -137,22 +147,28 @@ def navigate_and_search(matching_emails):
 
     try:
         # First Cloud Service
-        driver.get("https://qa-armada.mercurygate.net/MercuryGate/login/spLogin.jsp?inline=true")  # This is test environemnt TMS, real URL is https://armada.mercurygate.net/MercuryGate/login/mgLogin.jsp?inline=true
+        driver.get("https://armada.mercurygate.net/MercuryGate/login/mgLogin.jsp?inline=true")
         print("Navigating to TMS MercuryGate...")
 
         # Log in 
         try:
-            # Bitwarden should theoretically be able to autofill UN and PW
-            username_field = wait.until(EC.presence_of_element_located((By.ID, "UserID")))
-            username_field.send_keys("practice")  # TMS test environment un is practice
+            # need to input hardcoded un and pw fields
+            username_field = wait.until(EC.presence_of_element_located((By.ID, "UserId")))
+            username_field.send_keys("zachary.anderson")  # TMS test environment un is practice
             
             # # Find password field and enter credentials
             password_field = driver.find_element(By.ID, "Password")
-            password_field.send_keys("Armada1@")  # TMS test environment is Armada1@
-            
+            password_field.send_keys("di&6Rwt2#f7PB6")  # TMS test environment is Armada1@
+
             # Click the Sign In button
-            sign_in_button = driver.find_element(By.NAME, "submitbutton")
-            sign_in_button.click()
+            click_button_by_XPATH(driver, '//input[@value="    Sign In    "]')
+            # wait = WebDriverWait(driver, 10)
+            # sign_in_button = wait.until(
+            #     EC.element_to_be_clickable((By.XPATH, '//input[@value="    Sign In    "]'))
+            #     )
+
+            # # Click the button
+            # sign_in_button.click()
             
             # Wait for successful login (adjust the selector based on a element that appears after login)
             wait.until(EC.presence_of_element_located((By.ID, "dashboard")))
@@ -164,13 +180,7 @@ def navigate_and_search(matching_emails):
         
         try:
             # Wait for the <div> containing the <span> with text "Loads" to be clickable
-            wait = WebDriverWait(driver, 10)
-            loads_div = wait.until(
-                EC.element_to_be_clickable((By.XPATH, "//div[span[text()='Loads']]"))
-            )
-            
-            # Click the <div>
-            loads_div.click()
+            click_button_by_XPATH(driver, '//*[@id="__AppFrameBaseTable"]/tbody/tr[2]/td/div[5]/span')
 
         except Exception as e:
             print(f"Error: {e}")
@@ -178,8 +188,8 @@ def navigate_and_search(matching_emails):
         finally:
             driver.quit()
 
-        # Example: Wait for login or dashboard page to load
-        wait.until(EC.presence_of_element_located((By.ID, "dashboard")))
+        # # Example: Wait for login or dashboard page to load
+        # wait.until(EC.presence_of_element_located((By.ID, "dashboard")))
 
         for email in matching_emails:
             for number in email["Numbers"]:
