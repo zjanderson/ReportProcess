@@ -10,12 +10,59 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 import time
-from Supporting_Documents.credentials import USERNAME, PASSWORD
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from Supporting_Documents.credentials import USERNAME, PASSWORD, MYEMAIL
 
 try:
     nltk.download('punkt')
 except Exception as e:
     print(f"Error downloading NLTK data: {e}")
+
+
+ALL_FOLDERS = [
+    "Inbox/IB Hub/Dallas", 
+    "Inbox/IB Hub/East Point", 
+    # "Inbox/IB Hub/Greencastle", 
+    # "Inbox/IB Hub/Romeoville", 
+    # "Inbox/McDonald's/Toys", 
+    # "Inbox/McDonald's/MCD East", 
+    # "Inbox/McDonald's/MCD South", 
+    # "Inbox/McDonald's/MCD Central", 
+    # "Inbox/McDonald's/MCD West", 
+    # "Inbox/McDonald's/MCD Supply", 
+    # "Inbox/National Accts/Zaxby's", 
+    # "Inbox/National Accts/Bojangles", 
+    # "Inbox/National Accts/Stakeholders", 
+    # "Inbox/National Accts/Supply Caddy", 
+    # "Inbox/National Accts/BBI", 
+    # "Inbox/National Accts/CHik Fil A/2.0 CFA", 
+    # "Inbox/National Accts/CHik Fil A/CFA Canada", 
+    # "Inbox/National Accts/CHik Fil A/CFA Hawaii", 
+    # "Inbox/National Accts/CHik Fil A/CFA Contingency", 
+    # "Inbox/National Accts/CHik Fil A/CFA Hormel", 
+    # "Inbox/National Accts/CHik Fil A/CFA Hubs", 
+    # "Inbox/National Accts/CHik Fil A/CFA PR", 
+    # "Inbox/National Accts/CHik Fil A/FA CFA", 
+    # "Inbox/National Accts/CHik Fil A/MB CFA", 
+    # "Inbox/National Accts/CHik Fil A/McLane CFA", 
+    # "Inbox/National Accts/CHik Fil A/Perishables", 
+    # "Inbox/National Accts/CHik Fil A/QCD", 
+    # "Inbox/National Accts/Darden", 
+    # "Inbox/National Accts/Darden/DDL", 
+    # "Inbox/National Accts/Darden/DDL Maines", 
+    # "Inbox/National Accts/Darden/DDL McLane", 
+    # "Inbox/National Accts/Dominoes", 
+    # "Inbox/National Accts/Panda Express", 
+    # "Inbox/National Accts/Panera", 
+    # "Inbox/National Accts/Panera/Panera Chips", 
+    # "Inbox/National Accts/Panera/Panera PandaEx GFS", 
+    # "Inbox/National Accts/Panera/Panera PandaEx SYGMA", 
+    # "Inbox/QA", 
+    ]
 
 def extract_numbers(text):
     """
@@ -24,51 +71,22 @@ def extract_numbers(text):
     numbers = re.findall(r'\b\d{5,}\b', text)
     return set(numbers)
 
-def get_favorites_folders(outlook):
-    """
-    Get folders currently marked as 'Favorites' in Outlook's navigation pane.
-    """
-    try:
-        # Get the active explorer if Outlook is open
-        explorer = outlook.Application.ActiveExplorer()
-        if not explorer:
-            # If no active explorer, try to get default folders
-            raise Exception("No active Outlook window found")
-            
-        # Access the Navigation Pane
-        nav_pane = explorer.NavigationPane
-        # Access the Favorites navigation module
-        nav_module = nav_pane.Modules.GetNavigationModule(0)  # 0 is olModuleMail
-        # Get the actual Favorites folder group
-        favorites_group = nav_module.NavigationGroups('Favorites')
-        
-        print("\nFavorites folders found:")
-        favorites = []
-        for nav_folder in favorites_group.NavigationFolders:
-            print(f" - {nav_folder.Folder.Name}")
-            favorites.append(nav_folder.Folder)
-        
-        return favorites
-        
-    except Exception as e:
-        print(f"Error accessing Favorites: {e}")
-        # Fallback: return default folders like Inbox
-        try:
-            namespace = outlook.GetNamespace("MAPI")
-            inbox = namespace.GetDefaultFolder(6)  # 6 is olFolderInbox
-            print("\nFalling back to Inbox only")
-            return [inbox]
-        except Exception as e2:
-            print(f"Fallback also failed: {e2}")
-            return []
+def get_folders_to_process(outlook):
+    compiled_folders = []
+    namespace = outlook.GetNamespace("MAPI")
+    inbox = namespace.Folders.Item(MYEMAIL)
+    current_folder = inbox 
+    for folder in ALL_FOLDERS:
+        compiled_folders.append(folder.Folders)
+
 
 def process_emails_in_favorites():
     """
     Process unread emails that appear to request information in all folders marked as 'Favorites' in Outlook.
     Extract Bill of Lading, PO numbers, or Load IDs (at least 5 digits).
     """
-    outlook = win32com.client.Dispatch("Outlook.Application")
-    favorites_folders = get_favorites_folders(outlook)
+    outlook = win32com.client.gencache.EnsureDispatch("Outlook.Application")
+    favorites_folders = get_folders_to_process(outlook)
 
     matching_emails = []
 
@@ -78,7 +96,7 @@ def process_emails_in_favorites():
             emails = emails.Restrict("[Unread] = True")  # Filter unread emails
 
             # Print the number of unread emails in the current folder
-            print(f"\nChecking folder: '{folder.Name}' - Found {len(emails)} unread emails")
+            print(f"\nChecking folder: '{folder}' - Found {len(emails)} unread emails")
             
             for email in emails:
                 if email.Class == 43:  # Mailitem
@@ -97,11 +115,11 @@ def process_emails_in_favorites():
                             "Subject": subject,
                             "Numbers": numbers,
                             "EntryID": email.EntryID,  # Store EntryID for future actions like Reply-All
-                            "Folder": folder.Name,
+                            "Folder": folder,
                         })
 
         except Exception as e:
-            print(f"Error processing folder {folder.Name}: {e}")
+            print(f"Error processing folder {folder}: {e}")
             continue
 
     return matching_emails
@@ -257,23 +275,13 @@ def search_in_second_service(driver, wait, matching_emails):
 if __name__ == "__main__":
     matching_emails = process_emails_in_favorites()
 
-    print("\nMatching Emails:")
-    for email in matching_emails:
-        print(f"Sender: {email['Sender']}")
-        print(f"Subject: {email['Subject']}")
-        print(f"Numbers Found: {email['Numbers']}")
-        print(f"Folder: {email['Folder']}")
-        print("-" * 50)
-
     # Use Selenium to navigate and search for numbers
-    driver = webdriver.Edge()
-    wait = WebDriverWait(driver, 20)
+    # driver = webdriver.Edge()
+    # wait = WebDriverWait(driver, 20)
 
-    try:
-        login_to_tms(driver, wait)
-        navigate_to_loads(driver)
-        search_in_tms(matching_emails, wait)
+    # login_to_tms(driver, wait)
+    # navigate_to_loads(driver)
+    # search_in_tms(matching_emails, wait)
 
-    finally:
-        driver.quit()
+    # driver.quit()
 

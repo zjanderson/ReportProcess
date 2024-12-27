@@ -1,10 +1,11 @@
 import win32com.client
-# from selenium import webdriver
-# from selenium.webdriver.common.by import By
-# from selenium.webdriver.support.ui import WebDriverWait
-# from selenium.webdriver.support import expected_conditions as EC
-# from selenium.common.exceptions import TimeoutException
 import time
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from Supporting_Documents.credentials import MYEMAIL
 
 
 DELETE_FOLDERS = [
@@ -16,28 +17,11 @@ DELETE_FOLDERS = [
     "Deleted Items", 
     ]
 
-FOLDER_TO_CLASS = {
-    "Inbox/Weather Updates" : "gtcPn _8g73 LPIso", 
-    "Inbox/Fresh Beef" : "", 
-    "Inbox/Coverage" : "", 
-    "Inbox/BluePrism" : "",
-    "Inbox/National Accts/Chik Fil A/*" : "",
-    "Inbox/National Accts/Chik Fil A/*" : "",
-    "Inbox/National Accts/Chik Fil A/*" : "",
-    "Inbox/National Accts/Chik Fil A/*" : "",
-    "Inbox/National Accts/Chik Fil A/*" : "",
-    "Inbox/National Accts/Chik Fil A/*" : "",
-    "Inbox/National Accts/Chik Fil A/*" : "",
-    "Inbox/National Accts/Chik Fil A/*" : "",
-    "Inbox/National Accts/Chik Fil A/*" : "",
-    "Inbox/National Accts/Chik Fil A/*" : "",
-    "Deleted Items" : "", 
-}
 
 def delete_app_emails_from_folder(folder_path):
     outlook = win32com.client.Dispatch("Outlook.Application")
     namespace = outlook.GetNamespace("MAPI")
-    inbox = namespace.Folders.Item("zanderson@armada.net")
+    inbox = namespace.Folders.Item(MYEMAIL)
     
     # Handle wildcard pattern
     if '*' in folder_path:
