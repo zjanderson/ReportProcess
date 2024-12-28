@@ -107,9 +107,9 @@ def compose_email(outlook, carrier_name, recipient, recipientCC, html_table_with
     mail.to = recipient
     mail.cc = recipientCC
 
-    # Set deferred delivery time to 5 hours from now
+    # Set deferred delivery time to 3 hours from now
     from datetime import datetime, timedelta
-    delivery_time = datetime.now() + timedelta(hours=5)
+    delivery_time = datetime.now() + timedelta(hours=3)
     mail.DeferredDeliveryTime = delivery_time.strftime("%Y-%m-%d %H:%M")
 
     if image_file:
