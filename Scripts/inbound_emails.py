@@ -86,7 +86,7 @@ def get_folders_to_process():
 
 def process_emails_in_favorites():
     """
-    Process unread emails that appear to request information in all folders marked as 'Favorites' in Outlook.
+    Process unread emails that appear to request information in all selected Outlook folders.
     Extract Bill of Lading, PO numbers, or Load IDs (at least 5 digits).
     """
     favorites_folders = get_folders_to_process()
@@ -206,9 +206,9 @@ def search_in_second_service(driver, wait, matching_emails):
             time.sleep(5)  # Wait for results to load
 
 
-# def navigate_and_search(matching_emails):
+# def search_in_4kites(matching_emails):
     # """
-    # Navigate to TMS and 4Kites and search using extracted numbers.
+    # Navigate to 4Kites and search using extracted numbers.
     # """
     # # Set up Selenium WebDriver (Edge, Chrome, or Firefox)
     # driver = webdriver.Edge()  # Replace with webdriver.Chrome() or webdriver.Firefox() as needed
@@ -216,23 +216,23 @@ def search_in_second_service(driver, wait, matching_emails):
 
     # try:
     #     # First Cloud Service
-    #     driver.get("https://armada.mercurygate.net/MercuryGate/login/mgLogin.jsp?inline=true")
-    #     print("Navigating to TMS MercuryGate...")
+    #     driver.get("https://app.fourkites.com/#/signin")
+    #     print("Navigating to 4kites...")
 
     #     # Log in 
     #     try:
     #         # need to input hardcoded un and pw fields
-    #         username_field = wait.until(EC.presence_of_element_located((By.ID, "UserId")))
-    #         username_field.send_keys(USERNAME)  # TMS test environment un is practice
+    #         username_field = wait.until(EC.presence_of_element_located((By.ID, "UserId")))  ####TODO change this for 4kites
+    #         username_field.send_keys(USERNAME)  ####TODO change this for 4kites
             
     #         # # Find password field and enter credentials
-    #         password_field = driver.find_element(By.ID, "Password")
-    #         password_field.send_keys(PASSWORD)  # TMS test environment is Armada1@
+    #         password_field = driver.find_element(By.ID, "Password") ####TODO change this for 4kites
+    #         password_field.send_keys(PASSWORD)  ####TODO change this for 4kites
 
     #         # Click the Sign In button
-    #         click_button_by_XPATH(driver, '//input[@value="    Sign In    "]')
+    #         click_button_by_XPATH(driver, '//input[@value="    Sign In    "]') ####TODO change this for 4kites
             
-    #         print("Successfully logged into MercuryGate")
+    #         print("Successfully logged into 4Kites")
             
     #     except Exception as e:
     #         print(f"Login failed: {e}")
@@ -240,14 +240,14 @@ def search_in_second_service(driver, wait, matching_emails):
         
     #     try:
     #         # Wait for the <div> containing the <span> with text "Loads" to be clickable
-    #         click_button_by_XPATH(driver, '//*[@id="__AppFrameBaseTable"]/tbody/tr[2]/td/div[5]/span')
+    #         click_button_by_XPATH(driver, '//*[@id="__AppFrameBaseTable"]/tbody/tr[2]/td/div[5]/span') ####TODO change this for 4kites
 
     #     except Exception as e:
     #         print(f"Error: {e}")
 
     #     for email in matching_emails:
     #         for number in email["Numbers"]:
-    #             print(f"Searching for number {number} on TMS...")
+    #             print(f"Searching for number {number} in 4Kites...")
 
     #             # Example: Perform search
     #             search_box = wait.until(EC.element_to_be_clickable((By.ID, "search-input")))  # Replace ID with the actual search box locator
@@ -256,20 +256,6 @@ def search_in_second_service(driver, wait, matching_emails):
     #             search_box.send_keys(Keys.RETURN)
     #             time.sleep(5)  # Wait for results to load
 
-    #     # Second Cloud Service
-    #     driver.get("https://cloudservice2.com")  # Replace with the second service's URL
-    #     print("Navigating to the second cloud service...")
-
-    #     for email in matching_emails:
-    #         for number in email["Numbers"]:
-    #             print(f"Searching for number {number} on Cloud Service 2...")
-
-    #             # Example: Perform search
-    #             search_box = wait.until(EC.element_to_be_clickable((By.NAME, "search")))  # Replace NAME with the actual search box locator
-    #             search_box.clear()
-    #             search_box.send_keys(number)
-    #             search_box.send_keys(Keys.RETURN)
-    #             time.sleep(5)  # Wait for results to load
 
     # except TimeoutException as e:
     #     print(f"Timeout occurred: {e}")
