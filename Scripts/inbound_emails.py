@@ -24,44 +24,44 @@ except Exception as e:
 
 
 ALL_FOLDERS = [
-    "Inbox/IB Hub/Dallas", 
-    "Inbox/IB Hub/East Point", 
-    # "Inbox/IB Hub/Greencastle", 
-    # "Inbox/IB Hub/Romeoville", 
-    # "Inbox/McDonald's/Toys", 
-    # "Inbox/McDonald's/MCD East", 
-    # "Inbox/McDonald's/MCD South", 
-    # "Inbox/McDonald's/MCD Central", 
-    # "Inbox/McDonald's/MCD West", 
-    # "Inbox/McDonald's/MCD Supply", 
-    # "Inbox/National Accts/Zaxby's", 
-    # "Inbox/National Accts/Bojangles", 
-    # "Inbox/National Accts/Stakeholders", 
-    # "Inbox/National Accts/Supply Caddy", 
-    # "Inbox/National Accts/BBI", 
-    # "Inbox/National Accts/CHik Fil A/2.0 CFA", 
-    # "Inbox/National Accts/CHik Fil A/CFA Canada", 
-    # "Inbox/National Accts/CHik Fil A/CFA Hawaii", 
-    # "Inbox/National Accts/CHik Fil A/CFA Contingency", 
-    # "Inbox/National Accts/CHik Fil A/CFA Hormel", 
-    # "Inbox/National Accts/CHik Fil A/CFA Hubs", 
-    # "Inbox/National Accts/CHik Fil A/CFA PR", 
-    # "Inbox/National Accts/CHik Fil A/FA CFA", 
-    # "Inbox/National Accts/CHik Fil A/MB CFA", 
-    # "Inbox/National Accts/CHik Fil A/McLane CFA", 
-    # "Inbox/National Accts/CHik Fil A/Perishables", 
-    # "Inbox/National Accts/CHik Fil A/QCD", 
-    # "Inbox/National Accts/Darden", 
-    # "Inbox/National Accts/Darden/DDL", 
-    # "Inbox/National Accts/Darden/DDL Maines", 
-    # "Inbox/National Accts/Darden/DDL McLane", 
-    # "Inbox/National Accts/Dominoes", 
-    # "Inbox/National Accts/Panda Express", 
-    # "Inbox/National Accts/Panera", 
-    # "Inbox/National Accts/Panera/Panera Chips", 
-    # "Inbox/National Accts/Panera/Panera PandaEx GFS", 
-    # "Inbox/National Accts/Panera/Panera PandaEx SYGMA", 
-    # "Inbox/QA", 
+    # "IB Hub/Dallas", 
+    # "IB Hub/East Point", 
+    # "IB Hub/Greencastle", 
+    # "IB Hub/Romeoville", 
+    # "McDonald's/Toys", 
+    # "McDonald's/MCD East", 
+    # "McDonald's/MCD South", 
+    # "McDonald's/MCD Central", 
+    # "McDonald's/MCD West", 
+    # "McDonald's/MCD Supply", 
+    # "National Accts/Zaxby's", 
+    # "National Accts/Bojangles", 
+    # "National Accts/Stakeholders", 
+    # "National Accts/Supply Caddy", 
+    # "National Accts/BBI", 
+    # "National Accts/CHik Fil A/2.0 CFA", 
+    # "National Accts/CHik Fil A/CFA Canada", 
+    # "National Accts/CHik Fil A/CFA Hawaii", 
+    # "National Accts/CHik Fil A/CFA Contingency", 
+    # "National Accts/CHik Fil A/CFA Hormel", 
+    # "National Accts/CHik Fil A/CFA Hubs", 
+    # "National Accts/CHik Fil A/CFA PR", 
+    # "National Accts/CHik Fil A/FA CFA", 
+    # "National Accts/CHik Fil A/MB CFA", 
+    # "National Accts/CHik Fil A/McLane CFA", 
+    # "National Accts/CHik Fil A/Perishables", 
+    # "National Accts/CHik Fil A/QCD", 
+    # "Darden", 
+    "Darden/DDL", 
+    # "Darden/DDL Maines", 
+    # "Darden/DDL McLane", 
+    # "National Accts/Dominoes", 
+    # "National Accts/Panda Express", 
+    # "National Accts/Panera", 
+    # "National Accts/Panera/Panera Chips", 
+    # "National Accts/Panera/Panera PandaEx GFS", 
+    # "National Accts/Panera/Panera PandaEx SYGMA", 
+    # "QA", 
     ]
 
 def extract_numbers(text):
@@ -71,13 +71,17 @@ def extract_numbers(text):
     numbers = re.findall(r'\b\d{5,}\b', text)
     return set(numbers)
 
-def get_folders_to_process(outlook):
-    compiled_folders = []
+def get_folders_to_process():
+    outlook = win32com.client.gencache.EnsureDispatch("Outlook.Application")
     namespace = outlook.GetNamespace("MAPI")
-    inbox = namespace.Folders.Item(MYEMAIL)
-    current_folder = inbox 
-    for folder in ALL_FOLDERS:
-        compiled_folders.append(folder.Folders)
+    inbox = namespace.GetDefaultFolder(6)  # 6 = Inbox
+    
+    compiled_folders = []
+    for folder_name in ALL_FOLDERS:
+        # folder_path_components = folder_name.split('/')
+        compiled_folders.append(inbox.Folders[folder_name])
+    print(compiled_folders)
+    return compiled_folders
 
 
 def process_emails_in_favorites():
@@ -85,22 +89,25 @@ def process_emails_in_favorites():
     Process unread emails that appear to request information in all folders marked as 'Favorites' in Outlook.
     Extract Bill of Lading, PO numbers, or Load IDs (at least 5 digits).
     """
-    outlook = win32com.client.gencache.EnsureDispatch("Outlook.Application")
-    favorites_folders = get_folders_to_process(outlook)
+    favorites_folders = get_folders_to_process()
 
     matching_emails = []
 
     for folder in favorites_folders:
         try:
             emails = folder.Items
+            print(emails)
+            
             emails = emails.Restrict("[Unread] = True")  # Filter unread emails
 
             # Print the number of unread emails in the current folder
             print(f"\nChecking folder: '{folder}' - Found {len(emails)} unread emails")
             
             for email in emails:
+                print("++++++++")
                 if email.Class == 43:  # Mailitem
                     subject = email.Subject or ""
+                    print(subject)
                     body = email.Body or ""
 
                     # Combine subject and body for processing
