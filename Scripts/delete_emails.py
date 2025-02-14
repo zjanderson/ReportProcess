@@ -10,10 +10,20 @@ from Supporting_Documents.credentials import MYEMAIL
 
 DELETE_FOLDERS = [
     "Inbox/Weather Updates", 
-    "Inbox/Fresh Beef", 
     "Inbox/Coverage", 
     "Inbox/BluePrism",
-    "Inbox/National Accts/Chik Fil A/*",
+    "Inbox/CFA 2.0",
+    "Inbox/CFA Canada",
+    "Inbox/CFA Hawaii",
+    "Inbox/CFA Contingency",
+    "Inbox/CFA Hormel",
+    "Inbox/CFA Hubs",
+    "Inbox/CFA PR",
+    "Inbox/CFA FA",
+    "Inbox/CFA MB",
+    "Inbox/CFA McLane",
+    "Inbox/CFA Perishables",
+    "Inbox/CFA QCD",
     "Deleted Items", 
     ]
 
