@@ -51,7 +51,7 @@ ALL_FOLDERS = [
     # "CFA McLane",
     # "CFA Perishables",
     # "CFA QCD",
-    # "Darden", 
+    "Darden", 
     # "Darden/DDL", 
     # "Darden/DDL Maines", 
     # "Darden/DDL McLane", 
