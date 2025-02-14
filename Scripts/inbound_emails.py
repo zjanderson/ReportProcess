@@ -12,6 +12,7 @@ from selenium.common.exceptions import TimeoutException
 import time
 import sys
 import os
+from selenium.webdriver.common.action_chains import ActionChains
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -146,6 +147,8 @@ def login_to_tms(driver, wait):
     Log in to TMS MercuryGate
     """
     try:
+        driver.get("https://armada.mercurygate.net/MercuryGate/login/spLogin.jsp?")
+
         # need to input hardcoded un and pw fields
         username_field = wait.until(EC.presence_of_element_located((By.ID, "UserId")))
         username_field.send_keys(USERNAME)
@@ -177,31 +180,30 @@ def navigate_to_loads(driver):
         print(f"Navigation to Loads page failed: {e}")
         raise
 
-def search_in_tms(matching_emails, wait):
-    for email in matching_emails:
-        for number in email["Numbers"]:
-            print(f"Searching for number {number} on TMS...")
+def search_in_tms(number, wait):
+    print(f"Searching for number {number} on TMS...")
 
-            # Example: Perform search
-            search_box = wait.until(EC.element_to_be_clickable(By.XPATH, '/html/body/form/table/tbody/tr/td[2]/input[1]'))
-            search_box.clear()
-            search_box.send_keys(number)
-            search_box.send_keys(Keys.RETURN)
-            time.sleep(5)  # Wait for results to load
+    actions = ActionChains(driver)
+    for _ in range(11):
+        actions.send_keys(Keys.TAB).perform()
+        time.sleep(1)   
+
+    actions.send_keys(number)
+    actions.send_keys(Keys.RETURN)
+    actions.perform()
 
 
-# Main script
 if __name__ == "__main__":
-    matching_emails = process_emails_in_favorites()
+    # matching_emails = process_emails_in_favorites()
 
     # Use Selenium to navigate and search for numbers
     driver = webdriver.Edge()
     wait = WebDriverWait(driver, 20)
 
-    # login_to_tms(driver, wait)
+    login_to_tms(driver, wait)
     navigate_to_loads(driver)
-    search_in_tms(matching_emails, wait)
+    search_in_tms("73597774", wait)
 
 
-    driver.quit()
+    # driver.quit()
 
