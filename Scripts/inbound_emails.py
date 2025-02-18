@@ -56,7 +56,7 @@ ALL_FOLDERS = [
     # "Darden/DDL", 
     # "Darden/DDL Maines", 
     # "Darden/DDL McLane", 
-    "Dominoes", 
+    # "Dominoes", 
     # "Panda Express",
     # "Panda Produce", 
     # "Panera", 
@@ -64,73 +64,79 @@ ALL_FOLDERS = [
     # "Panera PandaEx GFS", 
     # "Panera PandaEx SYGMA", 
     # "QA", 
+    "Fresh Beef"
     ]
 
-def extract_numbers(text):
+def extract_numbers(email):
     """
-    Extract sequences of at least 5 numerical digits from the text.
+    Extract sequences of at least 5 numerical digits from the email.
     """
+    text = email.Subject + email.Body
     numbers = re.findall(r'\b\d{5,}\b', text)
     return set(numbers)
 
-def get_folders_to_process():
-    outlook = win32com.client.gencache.EnsureDispatch("Outlook.Application")
-    namespace = outlook.GetNamespace("MAPI")
-    inbox = namespace.GetDefaultFolder(6)  # 6 = Inbox
+def find_unread_emails(folder_name, inbox):
+    try:
+        current_folder = inbox.Folders.Item(folder_name)
+        
+        if current_folder:
+            emails = current_folder.Items
+            # emails.Sort("[ReceivedTime]", True)
+            unread_emails = [email for email in emails if email.UnRead]
+            
+            if unread_emails:
+                print(f"Found {len(unread_emails)} unread emails in {folder_name}")
+            else:
+                print(f"No unread emails found in {folder_name}")
+        return unread_emails
     
-    compiled_folders = []
-    for folder_name in ALL_FOLDERS:
-        # folder_path_components = folder_name.split('/')
-        compiled_folders.append(inbox.Folders[folder_name])
-    print(compiled_folders)
-    return compiled_folders
+    except Exception as folder_error:
+        print(f"Error accessing folder '{folder_name}': {folder_error}")
 
+def access_inbox():
+    try:
+        # Create single Outlook instance outside the loop
+        outlook = win32com.client.Dispatch("Outlook.Application")
+        namespace = outlook.GetNamespace("MAPI")
+        inbox = namespace.GetDefaultFolder(6)
 
-def process_emails_in_favorites():
+        return inbox
+    
+    except Exception as e:
+        print(f"Critical error in Outlook connection: {e}")
+        return e
+
+def process_email_thread(email):
+    numbers = extract_numbers(email)
+    print(f"Found {numbers} to search for")
+
+    driver = webdriver.Edge()
+    wait = WebDriverWait(driver, 20)
+
+    login_to_tms(driver, wait)
+    navigate_to_loads(driver)
+    time.sleep(1)
+
+    for number in numbers:
+        navigate_to_loads(driver)
+        search_in_tms(number, driver)
+
+def process_emails_in_specified_folders():
     """
     Process unread emails that appear to request information in all selected Outlook folders.
     Extract Bill of Lading, PO numbers, or Load IDs (at least 5 digits).
     """
-    favorites_folders = get_folders_to_process()
-
     matching_emails = []
 
-    for folder in favorites_folders:
-        try:
-            emails = folder.Items
-            print(emails)
-            
-            emails = emails.Restrict("[Unread] = True")  # Filter unread emails
+    inbox = access_inbox()
 
-            # Print the number of unread emails in the current folder
-            print(f"\nChecking folder: '{folder}' - Found {len(emails)} unread emails")
-            
-            for email in emails:
-                print("++++++++")
-                if email.Class == 43:  # Mailitem
-                    subject = email.Subject or ""
-                    print(subject)
-                    body = email.Body or ""
 
-                    # Combine subject and body for processing
-                    text = f"{subject} {body}"
 
-                    # Extract numbers
-                    numbers = extract_numbers(text)
-
-                    if numbers:
-                        matching_emails.append({
-                            "Sender": email.SenderName,
-                            "Subject": subject,
-                            "Numbers": numbers,
-                            "EntryID": email.EntryID,  # Store EntryID for future actions like Reply-All
-                            "Folder": folder,
-                        })
-
-        except Exception as e:
-            print(f"Error processing folder {folder}: {e}")
-            continue
-
+    for folder_name in ALL_FOLDERS:
+        unread = find_unread_emails(folder_name, inbox)
+        for email in unread:
+            process_email_thread(email)
+        
     return matching_emails
 
 def click_button_by_XPATH(driver, element_xpath):
@@ -180,13 +186,13 @@ def navigate_to_loads(driver):
         print(f"Navigation to Loads page failed: {e}")
         raise
 
-def search_in_tms(number, wait):
+def search_in_tms(number, driver):
     print(f"Searching for number {number} on TMS...")
 
     actions = ActionChains(driver)
-    for _ in range(11):
+    for _ in range(5):
         actions.send_keys(Keys.TAB).perform()
-        time.sleep(1)   
+        time.sleep(.5)   
 
     actions.send_keys(number)
     actions.send_keys(Keys.RETURN)
@@ -194,15 +200,15 @@ def search_in_tms(number, wait):
 
 
 if __name__ == "__main__":
-    # matching_emails = process_emails_in_favorites()
+    numbers = process_emails_in_specified_folders()
 
     # Use Selenium to navigate and search for numbers
-    driver = webdriver.Edge()
-    wait = WebDriverWait(driver, 20)
+    # driver = webdriver.Edge()
+    # wait = WebDriverWait(driver, 20)
 
-    login_to_tms(driver, wait)
-    navigate_to_loads(driver)
-    search_in_tms("73597774", wait)
+    # login_to_tms(driver, wait)
+    # navigate_to_loads(driver)
+    # search_in_tms("73597774", wait)
 
 
     # driver.quit()
