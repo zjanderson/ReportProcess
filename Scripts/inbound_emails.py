@@ -198,6 +198,92 @@ def search_in_tms(number, driver):
     actions.send_keys(Keys.RETURN)
     actions.perform()
 
+def get_shipper_details_tms(driver, wait):
+    """
+    Extract shipper details from results table
+    """
+    try:
+        shipper_section = wait.until(
+            EC.presence_of_element_located((By.CSS_SELECTOR, "div:contains('Shipper')"))
+        )
+        # Get the parent table
+        shipper_table = shipper_section.find_element(By.CSS_SELECTOR, "table")
+        shipper_cells = shipper_table.find_elements(By.CLASS_NAME, "DetailBodyTableRowEven")
+
+        shipper_data = {}
+
+        for cell in shipper_cells:
+            content = cell.text.strip()
+
+            if not content:
+                continue
+
+            if 'Contact :' in content:
+                shipper_data['contact'] = content.replace('Contact :', '').strip()
+            elif 'Phone :' in content:
+                shipper_data['phone'] = content.replace('Phone :', '').strip()
+            elif 'Email :' in content:
+                shipper_data['email'] = content.replace('Email :', '').strip()
+            elif 'US' in content:  # Likely the city/state/zip line
+                shipper_data['location'] = content
+            elif 'Avenue' in content or 'Street' in content or 'Road' in content:  # Likely the street address
+                shipper_data['street'] = content
+            elif content and 'company' not in shipper_data:  # First non-empty cell is usually company name
+                shipper_data['company'] = content
+        
+        print("Extracted shipper details:", shipper_data)
+        return shipper_data
+        
+    except TimeoutException:
+        print("Could not find shipper details")
+        return None
+
+def get_destination_details(driver, wait):
+    """
+    Extract destination details from the consignee table
+    """
+    try:
+        # Wait for the destination cells with DetailBodyTableRowEven class
+        consignee_section = wait.until(
+            EC.presence_of_all_elements_located((By.CSS_SELECTOR, "div:contains('Consignee')"))
+        )
+        
+        consignee_table = consignee_section.find_element(By.CSS_SELECTOR, "table")
+        destination_cells = consignee_table.find_elements(By.CLASS_NAME, "DetailBodyTableRowEven")
+        
+        destination_data = {}
+        
+        # Process each cell to extract information
+        for cell in destination_cells:
+            content = cell.text.strip()
+            
+            # Skip empty cells
+            if not content:
+                continue
+                
+            # Map the content to appropriate dictionary keys
+            if 'Contact :' in content:
+                destination_data['contact'] = content.replace('Contact :', '').strip()
+            elif 'Phone :' in content:
+                destination_data['phone'] = content.replace('Phone :', '').strip()
+            elif 'Email :' in content:
+                destination_data['email'] = content.replace('Email :', '').strip()
+            elif 'Location Comments :' in content:
+                destination_data['comments'] = content.replace('Location Comments :', '').strip()
+            elif 'US' in content:  # Likely the city/state/zip line
+                destination_data['location'] = content
+            elif 'Pkwy' in content or 'Street' in content or 'Road' in content:  # Likely the street address
+                destination_data['street'] = content
+            elif content and 'company' not in destination_data:  # First non-empty cell is usually company name
+                destination_data['company'] = content
+        
+        print("Extracted destination details:", destination_data)
+        return destination_data
+        
+    except TimeoutException:
+        print("Could not find destination details")
+        return None
+
 
 if __name__ == "__main__":
     numbers = process_emails_in_specified_folders()
