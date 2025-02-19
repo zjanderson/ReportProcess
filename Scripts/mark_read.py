@@ -4,47 +4,47 @@ import sys
 
 
 ALL_FOLDERS = [
-    # "IB Hub Dallas", 
-    # "IB Hub East Point", 
-    # "IB Hub Greencastle", 
-    # "IB Hub Romeoville", 
-    # "MCDToys", 
-    # "MCD East", 
-    # "MCD South", 
-    # "MCD Central", 
-    # "MCD West", 
-    # "MCD Supply", 
-    # "Zaxby's", 
-    # "Bojangles", 
-    # "Stakeholders", 
-    # "Supply Caddy", 
-    # "BBI", 
-    # "CFA Canada",
-    # "CFA Hawaii",
-    # "CFA Contingency",
-    # "CFA Hormel",
-    # "CFA Hubs",
-    # "CFA PR",
-    # "CFA 2.0",
-    # "CFA FA",
-    # "CFA MB",
-    # "CFA McLane",
-    # "CFA Perishables",
-    # "CFA QCD",
-    # "Darden", 
+    "IB Hub Dallas", 
+    "IB Hub East Point", 
+    "IB Hub Greencastle", 
+    "IB Hub Romeoville", 
+    "MCD Toys", 
+    "MCD East", 
+    "MCD South", 
+    "MCD Central", 
+    "MCD West", 
+    "MCD Supply", 
+    "Zaxby's", 
+    "Bojangles", 
+    "Stakeholders", 
+    "Supply Caddy", 
+    "BBI", 
+    "CFA Canada",
+    "CFA Hawaii",
+    "CFA Contingency",
+    "CFA Hormel",
+    "CFA Hubs",
+    "CFA PR",
+    "CFA 2.0",
+    "CFA FA",
+    "CFA MB",
+    "CFA McLane",
+    "CFA Perishables",
+    "CFA QCD",
+    "Darden", 
     "Darden/DDL", 
-    # "Darden/DDL Maines", 
-    # "Darden/DDL McLane", 
-    # "Dominoes", 
-    # "Panda Express",
-    # "Panda Produce", 
-    # "Panera", 
-    # "Panera Chips", 
-    # "Panera PandaEx GFS", 
-    # "Panera PandaEx SYGMA", 
-    # "QA", 
-    # "Fresh Beef",
-    # "Weather Updates"
+    "Darden/DDL Maines", 
+    "Darden/DDL McLane", 
+    "Dominoes", 
+    "Panda Express",
+    "Panda Produce", 
+    "Panera", 
+    "Panera Chips", 
+    "Panera PandaEx GFS", 
+    "Panera PandaEx SYGMA", 
+    "QA", 
+    "Fresh Beef",
+    "Weather Updates"
     ]
 
 def access_inbox():
@@ -81,16 +81,23 @@ def mark_emails_in_folder_read(folder, military_time):
                 count += 1
 
         print(f"Marked {count} emails as read in folder: {folder.Name}")
+        return count
         
     except Exception as e:
         print(f"Error processing folder {folder.Name}: {e}")
 
 
+def process_single_folder(folder, time, count=10):
+    if count == 0:
+        return
+    count = mark_emails_in_folder_read(folder, time)
+    process_single_folder(folder, time, count)
+
 def process_folders(time):
     inbox = access_inbox()
     for folder_name in ALL_FOLDERS:
         folder = inbox.Folders.Item(folder_name)
-        mark_emails_in_folder_read(folder, time)
+        process_single_folder(folder, time)
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
