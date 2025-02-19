@@ -190,13 +190,18 @@ def search_in_tms(number, driver):
     print(f"Searching for number {number} on TMS...")
 
     actions = ActionChains(driver)
+    print(1)
     for _ in range(5):
+        print(2)
         actions.send_keys(Keys.TAB).perform()
         time.sleep(.5)   
-
+    print(3)
     actions.send_keys(number)
+    print(4)
     actions.send_keys(Keys.RETURN)
+    print(5)
     actions.perform()
+    print(6)
 
 def get_shipper_details_tms(driver, wait):
     """
@@ -220,15 +225,15 @@ def get_shipper_details_tms(driver, wait):
 
             if 'Contact :' in content:
                 shipper_data['contact'] = content.replace('Contact :', '').strip()
-            elif 'Phone :' in content:
+            if 'Phone :' in content:
                 shipper_data['phone'] = content.replace('Phone :', '').strip()
-            elif 'Email :' in content:
+            if 'Email :' in content:
                 shipper_data['email'] = content.replace('Email :', '').strip()
-            elif 'US' in content:  # Likely the city/state/zip line
+            if 'US' in content:  # Likely the city/state/zip line
                 shipper_data['location'] = content
-            elif 'Avenue' in content or 'Street' in content or 'Road' in content:  # Likely the street address
+            if 'Avenue' in content or 'Street' in content or 'Road' in content:  # Likely the street address
                 shipper_data['street'] = content
-            elif content and 'company' not in shipper_data:  # First non-empty cell is usually company name
+            if content and 'company' not in shipper_data:  # First non-empty cell is usually company name
                 shipper_data['company'] = content
         
         print("Extracted shipper details:", shipper_data)
@@ -264,20 +269,21 @@ def get_destination_details(driver, wait):
             # Map the content to appropriate dictionary keys
             if 'Contact :' in content:
                 destination_data['contact'] = content.replace('Contact :', '').strip()
-            elif 'Phone :' in content:
+            if 'Phone :' in content:
                 destination_data['phone'] = content.replace('Phone :', '').strip()
-            elif 'Email :' in content:
+            if 'Email :' in content:
                 destination_data['email'] = content.replace('Email :', '').strip()
-            elif 'Location Comments :' in content:
+            if 'Location Comments :' in content:
                 destination_data['comments'] = content.replace('Location Comments :', '').strip()
-            elif 'US' in content:  # Likely the city/state/zip line
+            if 'US' in content:  # Likely the city/state/zip line
                 destination_data['location'] = content
-            elif 'Pkwy' in content or 'Street' in content or 'Road' in content:  # Likely the street address
+            if 'Pkwy' in content or 'Street' in content or 'Road' in content:  # Likely the street address
                 destination_data['street'] = content
-            elif content and 'company' not in destination_data:  # First non-empty cell is usually company name
+            if content and 'company' not in destination_data:  # First non-empty cell is usually company name
                 destination_data['company'] = content
         
         print("Extracted destination details:", destination_data)
+        print(destination_data)
         return destination_data
         
     except TimeoutException:
@@ -286,15 +292,17 @@ def get_destination_details(driver, wait):
 
 
 if __name__ == "__main__":
-    numbers = process_emails_in_specified_folders()
+    # numbers = process_emails_in_specified_folders()
 
     # Use Selenium to navigate and search for numbers
-    # driver = webdriver.Edge()
-    # wait = WebDriverWait(driver, 20)
+    driver = webdriver.Edge()
+    wait = WebDriverWait(driver, 20)
 
-    # login_to_tms(driver, wait)
-    # navigate_to_loads(driver)
-    # search_in_tms("73597774", wait)
+    login_to_tms(driver, wait)
+    navigate_to_loads(driver)
+    search_in_tms("504198867", wait)
+
+    get_shipper_details_tms(driver, wait)
 
 
     # driver.quit()
