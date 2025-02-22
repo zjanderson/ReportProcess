@@ -88,10 +88,10 @@ def mark_emails_in_folder_read(folder, military_time):
 
 
 def process_single_folder(folder, time, count=10):
-    if count == 0:
-        return
-    count = mark_emails_in_folder_read(folder, time)
-    process_single_folder(folder, time, count)
+    if count > 0:
+        new_count = mark_emails_in_folder_read(folder, time)
+        if new_count> 0:
+            process_single_folder(folder, time, new_count)
 
 def process_folders(time):
     inbox = access_inbox()
