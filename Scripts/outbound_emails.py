@@ -44,7 +44,7 @@ def parse_report(file_name, sheet_name):
 # Generate table, eliminate NaN
 def prepare_data_for_email(group):
     # Eliminate NaN values from the DataFrame
-    group = group.fillna('')
+    group = group.fillna(value='')
 
     #  Create HTML table for the current carrier
     table_styles = """
