@@ -109,21 +109,6 @@ if __name__ == "__main__":
         military_time = int(sys.argv[1])
         if 0 <= military_time <= 23:
             process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
 
         else:
             print("Error: Please enter a valid hour between 0 and 23")
