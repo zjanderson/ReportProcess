@@ -179,45 +179,64 @@ def get_map_carriers_contacts(contacts_file):
 
 # Helper function: make a hashmap of locations and email groups
 def get_map_email_groups(ops_contacts):
-    egroups_df = pd.read_excel(ops_contacts)
-
+    # Read all sheets from the Excel file
+    all_sheets = pd.read_excel(ops_contacts, sheet_name=None)
+    
     map_email_groups = {}
-
-    for row_number, row in egroups_df.iterrows():
-        dest_name = str(row['Dest Name']).strip()
-        email_group = str(row['Email Group']).strip()
-
-        map_email_groups[dest_name] = email_group
+    
+    # Process each sheet
+    for sheet_name, sheet_df in all_sheets.items():
+        # Only process sheets with "DC" in their titles or the "IBHub" sheet
+        if ("DC" in sheet_name or sheet_name == "IBHub") and 'Dest Name' in sheet_df.columns and 'Email Group' in sheet_df.columns:
+            for row_number, row in sheet_df.iterrows():
+                dest_name = str(row['Dest Name']).strip()
+                email_group = str(row['Email Group']).strip()
+                
+                # Only add if both values are not empty
+                if dest_name and email_group and dest_name != 'nan' and email_group != 'nan':
+                    map_email_groups[dest_name] = email_group
+    
     return map_email_groups
 
-# Helper function: make a hashmap of owners and email groups ##MAKE SPREADSHEET OWNER_CONTACTS WITH OWNERS AND CORRESPONDING EMAIL GROUPS, add to build funcion
-#def get_map_owner_groups(owner_contacts):
-#    egroups_df = pd.read_excel(owner_contacts)
-
-#    map_owner_groups = {}
-
-#    for row_number, row in egroups_df.iterrows():
-#        owner = str(row['Owner']).strip()
-#        email_group = str(row['Email Group']).strip()
-
-#        map_owner_groups[owner] = email_group
-#    return map_owner_groups
-
+# Helper function: make a hashmap of owners and email groups
+def get_map_owner_groups(ops_contacts):
+    # Read all sheets from the Excel file
+    all_sheets = pd.read_excel(ops_contacts, sheet_name=None)
+    
+    map_owner_groups = {}
+    
+    # Process each sheet
+    for sheet_name, sheet_df in all_sheets.items():
+        # Only process sheets with "DC" in their titles or the "IBHub" sheet
+        if ("DC" in sheet_name or sheet_name == "IBHub") and 'Owner' in sheet_df.columns and 'Email Group' in sheet_df.columns:
+            for row_number, row in sheet_df.iterrows():
+                owner = str(row['Owner']).strip()
+                email_group = str(row['Email Group']).strip()
+                
+                # Only add if both values are not empty
+                if owner and email_group and owner != 'nan' and email_group != 'nan':
+                    map_owner_groups[owner] = email_group
+    
+    return map_owner_groups
 
 # Helper function - finding CC field of email groups for McD and CFA - check 'Owner' column for .contains MCD or Chik-fil-a, then reference destinations, otherwise new hashmap for Owner 
 # and corresponding email group
-
-def find_CC_recips(destinations, email_group):
-
+def find_CC_recips(destinations, email_group, owner_group=None, owner=None):
     CC_field = set()
 
+    # Add email groups based on destinations
     for location in destinations:
         email = email_group.get(location)
         if email is not None:
             CC_field.add(email)
+    
+    # Add email groups based on owner if provided
+    if owner_group and owner:
+        owner_email = owner_group.get(owner)
+        if owner_email is not None:
+            CC_field.add(owner_email)
 
     return CC_field
-
 
 # Build and Display emails
 def build_emails(file_name):
@@ -291,6 +310,40 @@ def build_emails(file_name):
     except Exception as e:
         print(f"Failed to initialize Outlook or load contact maps. Error: {e}")
 
+# Build overnight update emails for each carrier
+def build_overnight_update_emails(carriers, ops_contacts):
+    # Get email groups from the new spreadsheet
+    email_groups = get_map_email_groups(ops_contacts)
+    owner_groups = get_map_owner_groups(ops_contacts)
+    
+    emails = []
+    
+    for carrier_name, carrier_data in carriers:
+        # Prepare data for email
+        html_table = prepare_data_for_email(carrier_data)
+        
+        # Get unique destinations for this carrier
+        destinations = carrier_data['Dest Name'].unique().tolist()
+        
+        # Get owner from the first row (assuming all rows have the same owner)
+        owner = None
+        if 'Owner' in carrier_data.columns and not carrier_data['Owner'].empty:
+            owner = str(carrier_data['Owner'].iloc[0]).strip()
+        
+        # Find CC recipients based on destinations and owner
+        CC_field = find_CC_recips(destinations, email_groups, owner_groups, owner)
+        
+        # Create email
+        email = {
+            "to": f"{carrier_name}@example.com",  # Replace with actual carrier email
+            "cc": list(CC_field),
+            "subject": EMAIL_TEMPLATES["overnight_update"]["subject"].format(carrier_name=carrier_name),
+            "body": EMAIL_TEMPLATES["overnight_update"]["body"].format(html_table_with_styles=html_table)
+        }
+        
+        emails.append(email)
+    
+    return emails
 
 if __name__ == "__main__":
     env = sys.argv[1]
