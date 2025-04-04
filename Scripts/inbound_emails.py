@@ -13,6 +13,10 @@ import time
 import sys
 import os
 from selenium.webdriver.common.action_chains import ActionChains
+from PIL import Image
+import pytesseract
+import io
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe' # Adjust path if needed
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -187,61 +191,48 @@ def navigate_to_loads(driver):
         raise
 
 def search_in_tms(number, driver):
-    print(f"Searching for number {number} on TMS...")
+    try:
+        print(f"Searching for number {number} on TMS...")
 
-    actions = ActionChains(driver)
-    print(1)
-    for _ in range(5):
-        print(2)
-        actions.send_keys(Keys.TAB).perform()
-        time.sleep(.5)   
-    print(3)
-    actions.send_keys(number)
-    print(4)
-    actions.send_keys(Keys.RETURN)
-    print(5)
-    actions.perform()
-    print(6)
+        actions = ActionChains(driver)
+        for _ in range(5):
+            actions.send_keys(Keys.TAB).perform()
+            time.sleep(.5)   
+        actions.send_keys(number)
+        actions.send_keys(Keys.RETURN)
+        actions.perform()
+
+        print("Search completed successfully")
+        
+    except Exception as e:
+        print(f"Error during search: {e}")  
 
 def get_shipper_details_tms(driver, wait):
     """
-    Extract shipper details from results table
+    Extract shipper details from results table using screenshot and OCR
     """
     try:
-        shipper_section = wait.until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "div:contains('Shipper')"))
-        )
-        # Get the parent table
-        shipper_table = shipper_section.find_element(By.CSS_SELECTOR, "table")
-        shipper_cells = shipper_table.find_elements(By.CLASS_NAME, "DetailBodyTableRowEven")
-
-        shipper_data = {}
-
-        for cell in shipper_cells:
-            content = cell.text.strip()
-
-            if not content:
-                continue
-
-            if 'Contact :' in content:
-                shipper_data['contact'] = content.replace('Contact :', '').strip()
-            if 'Phone :' in content:
-                shipper_data['phone'] = content.replace('Phone :', '').strip()
-            if 'Email :' in content:
-                shipper_data['email'] = content.replace('Email :', '').strip()
-            if 'US' in content:  # Likely the city/state/zip line
-                shipper_data['location'] = content
-            if 'Avenue' in content or 'Street' in content or 'Road' in content:  # Likely the street address
-                shipper_data['street'] = content
-            if content and 'company' not in shipper_data:  # First non-empty cell is usually company name
-                shipper_data['company'] = content
+        # Take screenshot of the entire page
+        print("Taking screenshot of page...")
+        screenshot = driver.get_screenshot_as_png()
+        image = Image.open(io.BytesIO(screenshot))
         
-        print("Extracted shipper details:", shipper_data)
-        return shipper_data
+        # Use pytesseract to extract text from the image
+        print("Extracting text from screenshot...")
+        text = pytesseract.image_to_string(image)
         
-    except TimeoutException:
-        print("Could not find shipper details")
+        # Parse the extracted text for relevant information
+        shipper_details = {}
+        lines = text.split('\n')
+        with open('lines.py', 'w', encoding='utf-8') as f:
+            f.write('lines = ' + repr(lines))
+        print("Lines saved to lines.py")
+        print(lines)
+    except Exception as e:
+        print(f"Error processing screenshot: {str(e)}")
         return None
+
+
 
 def get_destination_details(driver, wait):
     """
@@ -275,12 +266,12 @@ def get_destination_details(driver, wait):
                 destination_data['email'] = content.replace('Email :', '').strip()
             if 'Location Comments :' in content:
                 destination_data['comments'] = content.replace('Location Comments :', '').strip()
-            if 'US' in content:  # Likely the city/state/zip line
-                destination_data['location'] = content
-            if 'Pkwy' in content or 'Street' in content or 'Road' in content:  # Likely the street address
-                destination_data['street'] = content
-            if content and 'company' not in destination_data:  # First non-empty cell is usually company name
-                destination_data['company'] = content
+            # if 'US' in content:  # Likely the city/state/zip line
+            #     destination_data['location'] = content
+            # if 'Pkwy' in content or 'Street' in content or 'Road' in content:  # Likely the street address
+            #     destination_data['street'] = content
+            # if content and 'company' not in destination_data:  # First non-empty cell is usually company name
+            #     destination_data['company'] = content
         
         print("Extracted destination details:", destination_data)
         print(destination_data)
@@ -291,19 +282,52 @@ def get_destination_details(driver, wait):
         return None
 
 
+def dump_page_info(driver, identifier=""):
+    try:
+        # Get the specific table element
+        table = driver.find_element(By.ID, "__AppFrameBaseTable")
+        table_html = table.get_attribute('outerHTML')
+        
+        # Create a timestamp for unique filename
+        timestamp = time.strftime("%Y%m%d-%H%M%S")
+        filename = f"page_dump_{identifier}_{timestamp}.txt"
+        
+        # Write table content to file
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write(table_html)
+                
+        print(f"Table content dumped to {filename}")
+        return filename
+        
+    except Exception as e:
+        print(f"Error dumping table info: {e}")
+        return None
+
 if __name__ == "__main__":
     # numbers = process_emails_in_specified_folders()
+    edge_options = webdriver.EdgeOptions()
+    edge_options.set_capability('ms:loggingPrefs', {'performance': 'ALL'})
 
     # Use Selenium to navigate and search for numbers
-    driver = webdriver.Edge()
+    driver = webdriver.Edge(options=edge_options)
     wait = WebDriverWait(driver, 20)
 
     login_to_tms(driver, wait)
     navigate_to_loads(driver)
-    search_in_tms("504198867", wait)
+    navigate_to_loads(driver)
 
-    get_shipper_details_tms(driver, wait)
+    search_in_tms("504198867", driver)
+    time.sleep(2)
+    # dump_page_info(driver, "504198867")
+
+    shipper_details = get_shipper_details_tms(driver, wait)
+    # print("\nshipper details:", shipper_details)
+
+    input("\nPress Enter to close the browser.")
 
 
-    # driver.quit()
+    driver.quit()
+
+
+    
 
