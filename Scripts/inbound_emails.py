@@ -110,27 +110,44 @@ def access_inbox():
         print(f"Critical error in Outlook connection: {e}")
         return e
 
-def process_email_thread(email):
+def extract_all_details_for_thread(email):
     numbers = extract_numbers(email)
+    total_body = ""
     print(f"Found {numbers} to search for")
 
-    driver = webdriver.Edge()
-    wait = WebDriverWait(driver, 20)
+    edge_options = webdriver.EdgeOptions()
+    edge_options.set_capability('ms:loggingPrefs', {'performance': 'ALL'})
 
+    # Use Selenium to navigate and search for numbers
+    driver = webdriver.Edge(options=edge_options)
+    driver.maximize_window()  # Maximize the browser window
+    wait = WebDriverWait(driver, 20)
     login_to_tms(driver, wait)
-    navigate_to_loads(driver)
-    time.sleep(1)
+
 
     for number in numbers:
+        print(number)
+        navigate_to_loads(driver)
+        navigate_to_loads(driver)
         navigate_to_loads(driver)
         search_in_tms(number, driver)
+        time.sleep(2)
+        shipper_details = get_contact_details_tms(driver, "shipper", wait)
+        print("\nshipper details: ", shipper_details)
+        consignee_details = get_contact_details_tms(driver, "consignee", wait)
+        print("consignee_details: ", consignee_details)
+        number_body = compose_body(number, shipper_details, consignee_details)
+        total_body += number_body
+    driver.quit()
+    return total_body
 
-def process_emails_in_specified_folders():
+
+def extract_all_unread_emails():
     """
     Process unread emails that appear to request information in all selected Outlook folders.
     Extract Bill of Lading, PO numbers, or Load IDs (at least 5 digits).
     """
-    matching_emails = []
+    all_unread_emails = []
 
     inbox = access_inbox()
 
@@ -138,10 +155,9 @@ def process_emails_in_specified_folders():
 
     for folder_name in ALL_FOLDERS:
         unread = find_unread_emails(folder_name, inbox)
-        for email in unread:
-            process_email_thread(email)
+        all_unread_emails.extend(unread)
         
-    return matching_emails
+    return all_unread_emails
 
 def click_button_by_XPATH(driver, element_xpath):
 
@@ -207,7 +223,17 @@ def search_in_tms(number, driver):
     except Exception as e:
         print(f"Error during search: {e}")  
 
-def get_shipper_details_tms(driver, wait):
+def find_emails(text):
+    email_pattern = r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'
+    emails = re.findall(email_pattern, text)
+    return emails
+
+def find_phone_numbers(text):
+    phone_pattern = r'\b(?:\+?1[-.]?)?\s*(?:\([0-9]{3}\)|[0-9]{3})[-.\s]*[0-9]{3}[-.\s]*[0-9]{4}\b'
+    phones = re.findall(phone_pattern, text)
+    return phones
+
+def get_contact_details_tms(driver, details_type, wait):
     """
     Extract shipper details from results table using screenshot and OCR
     """
@@ -216,117 +242,91 @@ def get_shipper_details_tms(driver, wait):
         print("Taking screenshot of page...")
         screenshot = driver.get_screenshot_as_png()
         image = Image.open(io.BytesIO(screenshot))
-        
-        # Use pytesseract to extract text from the image
-        print("Extracting text from screenshot...")
-        text = pytesseract.image_to_string(image)
-        
-        # Parse the extracted text for relevant information
-        shipper_details = {}
-        lines = text.split('\n')
-        with open('lines.py', 'w', encoding='utf-8') as f:
-            f.write('lines = ' + repr(lines))
-        print("Lines saved to lines.py")
-        print(lines)
+        width, height = image.size
+        #crop image to only show shipper (left third) or consignee (middle third)
+        if details_type == "shipper":
+            image = image.crop((0, 0, width // 3, height))
+        if details_type == "consignee":
+            image = image.crop((width // 3, 0, 2 * width // 3, height))  # Crop to middle third of screen
+
+        image = image.convert('L')  # Convert to grayscale
+        image = image.point(lambda x: 0 if x < 128 else 255, '1')  # Increase contrast
+        custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@.,_-:/ ()"'
+        text = pytesseract.image_to_string(image, config=custom_config)
+        emails = find_emails(text)
+        phone_numbers = find_phone_numbers(text)
+        contact_detials = {
+            "emails": emails,
+            "phone_numbers": phone_numbers
+        }
+        return contact_detials
     except Exception as e:
         print(f"Error processing screenshot: {str(e)}")
         return None
 
-
-
-def get_destination_details(driver, wait):
-    """
-    Extract destination details from the consignee table
-    """
+def compose_response_email(email, body):
     try:
-        # Wait for the destination cells with DetailBodyTableRowEven class
-        consignee_section = wait.until(
-            EC.presence_of_all_elements_located((By.CSS_SELECTOR, "div:contains('Consignee')"))
-        )
-        
-        consignee_table = consignee_section.find_element(By.CSS_SELECTOR, "table")
-        destination_cells = consignee_table.find_elements(By.CLASS_NAME, "DetailBodyTableRowEven")
-        
-        destination_data = {}
-        
-        # Process each cell to extract information
-        for cell in destination_cells:
-            content = cell.text.strip()
-            
-            # Skip empty cells
-            if not content:
-                continue
-                
-            # Map the content to appropriate dictionary keys
-            if 'Contact :' in content:
-                destination_data['contact'] = content.replace('Contact :', '').strip()
-            if 'Phone :' in content:
-                destination_data['phone'] = content.replace('Phone :', '').strip()
-            if 'Email :' in content:
-                destination_data['email'] = content.replace('Email :', '').strip()
-            if 'Location Comments :' in content:
-                destination_data['comments'] = content.replace('Location Comments :', '').strip()
-            # if 'US' in content:  # Likely the city/state/zip line
-            #     destination_data['location'] = content
-            # if 'Pkwy' in content or 'Street' in content or 'Road' in content:  # Likely the street address
-            #     destination_data['street'] = content
-            # if content and 'company' not in destination_data:  # First non-empty cell is usually company name
-            #     destination_data['company'] = content
-        
-        print("Extracted destination details:", destination_data)
-        print(destination_data)
-        return destination_data
-        
-    except TimeoutException:
-        print("Could not find destination details")
-        return None
+        reply = email.ReplyAll()
+        if reply is None:
+            print("Error: Could not create reply")
+            return False
+        reply.HTMLBody = body + reply.HTMLBody
 
-
-def dump_page_info(driver, identifier=""):
-    try:
-        # Get the specific table element
-        table = driver.find_element(By.ID, "__AppFrameBaseTable")
-        table_html = table.get_attribute('outerHTML')
+                # Display the email (this returns an Inspector object)
+        reply.Display()
         
-        # Create a timestamp for unique filename
-        timestamp = time.strftime("%Y%m%d-%H%M%S")
-        filename = f"page_dump_{identifier}_{timestamp}.txt"
+        # Save the draft
+        reply.Save()
         
-        # Write table content to file
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write(table_html)
-                
-        print(f"Table content dumped to {filename}")
-        return filename
-        
+        print("Response email composed and saved as draft")
+        return True
     except Exception as e:
-        print(f"Error dumping table info: {e}")
-        return None
+        print(f"Error composing response email: {e}")
+        return False
+
+def compose_body(extracted_number, shipper_details, consignee_details):
+    if not shipper_details['emails'] and not shipper_details['phone_numbers'] and not consignee_details['emails'] and not consignee_details['phone_numbers']:
+        body = f"<pre> {extracted_number}: no details found <br></pre>"
+    
+    else:
+        body = f"""
+        <pre>
+        Number: {extracted_number}
+
+            Shipper details:
+                emails: {shipper_details['emails']}
+                phones: {shipper_details['phone_numbers']}
+
+            Consignee details:
+                emails: {consignee_details['emails']}
+                phones: {consignee_details['phone_numbers']}
+        </pre>
+        """
+    return body
+        
+def mark_as_read(email):
+    try:
+        email.UnRead = False
+        email.Save()
+        print("Email marked as read")
+    except Exception as e:
+        print(f"Error marking email as read: {e}")
+
+    
+def execute_all_email_actions():
+    unread_emails = extract_all_unread_emails()
+    count = 0
+    for email in unread_emails:
+        count += 1
+        body = extract_all_details_for_thread(email)
+        compose_response_email(email, body)
+        mark_as_read(email)
+        if count == 2:
+            return
+
 
 if __name__ == "__main__":
-    # numbers = process_emails_in_specified_folders()
-    edge_options = webdriver.EdgeOptions()
-    edge_options.set_capability('ms:loggingPrefs', {'performance': 'ALL'})
-
-    # Use Selenium to navigate and search for numbers
-    driver = webdriver.Edge(options=edge_options)
-    wait = WebDriverWait(driver, 20)
-
-    login_to_tms(driver, wait)
-    navigate_to_loads(driver)
-    navigate_to_loads(driver)
-
-    search_in_tms("504198867", driver)
-    time.sleep(2)
-    # dump_page_info(driver, "504198867")
-
-    shipper_details = get_shipper_details_tms(driver, wait)
-    # print("\nshipper details:", shipper_details)
-
-    input("\nPress Enter to close the browser.")
-
-
-    driver.quit()
+    execute_all_email_actions()
 
 
     
