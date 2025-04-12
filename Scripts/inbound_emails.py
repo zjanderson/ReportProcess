@@ -71,32 +71,6 @@ ALL_FOLDERS = [
     "Fresh Beef"
     ]
 
-def extract_numbers(email):
-    """
-    Extract sequences of at least 5 numerical digits from the email.
-    """
-    text = email.Subject + email.Body
-    numbers = re.findall(r'\b\d{5,}\b', text)
-    return set(numbers)
-
-def find_unread_emails(folder_name, inbox):
-    try:
-        current_folder = inbox.Folders.Item(folder_name)
-        
-        if current_folder:
-            emails = current_folder.Items
-            # emails.Sort("[ReceivedTime]", True)
-            unread_emails = [email for email in emails if email.UnRead]
-            
-            if unread_emails:
-                print(f"Found {len(unread_emails)} unread emails in {folder_name}")
-            else:
-                print(f"No unread emails found in {folder_name}")
-        return unread_emails
-    
-    except Exception as folder_error:
-        print(f"Error accessing folder '{folder_name}': {folder_error}")
-
 def access_inbox():
     try:
         # Create single Outlook instance outside the loop
@@ -110,6 +84,66 @@ def access_inbox():
         print(f"Critical error in Outlook connection: {e}")
         return e
 
+def click_button_by_XPATH(driver, element_xpath):
+
+    wait = WebDriverWait(driver, 10)
+    target_element = wait.until(
+        EC.element_to_be_clickable((By.XPATH, element_xpath))
+    )
+
+    target_element.click()
+
+def compose_body(extracted_number, shipper_details, consignee_details):
+    if not shipper_details['emails'] and not shipper_details['phone_numbers'] and not consignee_details['emails'] and not consignee_details['phone_numbers']:
+        body = f"<pre> {extracted_number}: no details found <br></pre>"
+    
+    else:
+        body = f"""
+        <pre>
+        Number: {extracted_number}
+
+            Shipper details:
+                emails: {shipper_details['emails']}
+                phones: {shipper_details['phone_numbers']}
+
+            Consignee details:
+                emails: {consignee_details['emails']}
+                phones: {consignee_details['phone_numbers']}
+        </pre>
+        """
+    return body
+
+def compose_response_email(email, body):
+    try:
+        reply = email.ReplyAll()
+        if reply is None:
+            print("Error: Could not create reply")
+            return False
+        reply.HTMLBody = body + reply.HTMLBody
+
+                # Display the email (this returns an Inspector object)
+        reply.Display()
+        
+        # Save the draft
+        reply.Save()
+        
+        print("Response email composed and saved as draft")
+        return True
+    except Exception as e:
+        print(f"Error composing response email: {e}")
+        return False
+    
+def execute_all_email_actions():
+    unread_emails = extract_all_unread_emails()
+    count = 0
+    for email in unread_emails:
+        count += 1
+        body = extract_all_details_for_thread(email)
+        compose_response_email(email, body)
+        mark_as_read(email)
+        if count == 2:
+            return
+        
 def extract_all_details_for_thread(email):
     numbers = extract_numbers(email)
     total_body = ""
@@ -140,8 +174,7 @@ def extract_all_details_for_thread(email):
         total_body += number_body
     driver.quit()
     return total_body
-
-
+        
 def extract_all_unread_emails():
     """
     Process unread emails that appear to request information in all selected Outlook folders.
@@ -159,70 +192,14 @@ def extract_all_unread_emails():
         
     return all_unread_emails
 
-def click_button_by_XPATH(driver, element_xpath):
-
-    wait = WebDriverWait(driver, 10)
-    target_element = wait.until(
-        EC.element_to_be_clickable((By.XPATH, element_xpath))
-    )
-
-    target_element.click()
-
-def login_to_tms(driver, wait):
+def extract_numbers(email):
     """
-    Log in to TMS MercuryGate
+    Extract sequences of at least 5 numerical digits from the email.
     """
-    try:
-        driver.get("https://armada.mercurygate.net/MercuryGate/login/spLogin.jsp?")
-
-        # need to input hardcoded un and pw fields
-        username_field = wait.until(EC.presence_of_element_located((By.ID, "UserId")))
-        username_field.send_keys(USERNAME)
-        
-        # # Find password field and enter credentials
-        password_field = driver.find_element(By.ID, "Password")
-        password_field.send_keys(PASSWORD)
-
-        # Click the Sign In button
-        click_button_by_XPATH(driver, '//input[@value="    Sign In    "]')
-        
-        print("Successfully logged into MercuryGate")
-
-
-    except Exception as e:
-        print(f"Login failed: {e}")
-        raise
-
-
-def navigate_to_loads(driver):
-
-    try:
-        # Click the Loads button
-        click_button_by_XPATH(driver, '/html/body/table/tbody/tr[2]/td/div[5]/span')
-        
-        print("Successfully navigated to Loads page")
+    text = email.Subject + email.Body
+    numbers = re.findall(r'\b\d{5,}\b', text)
+    return set(numbers)
     
-    except Exception as e:
-        print(f"Navigation to Loads page failed: {e}")
-        raise
-
-def search_in_tms(number, driver):
-    try:
-        print(f"Searching for number {number} on TMS...")
-
-        actions = ActionChains(driver)
-        for _ in range(5):
-            actions.send_keys(Keys.TAB).perform()
-            time.sleep(.5)   
-        actions.send_keys(number)
-        actions.send_keys(Keys.RETURN)
-        actions.perform()
-
-        print("Search completed successfully")
-        
-    except Exception as e:
-        print(f"Error during search: {e}")  
-
 def find_emails(text):
     email_pattern = r'[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}'
     emails = re.findall(email_pattern, text)
@@ -232,6 +209,24 @@ def find_phone_numbers(text):
     phone_pattern = r'\b(?:\+?1[-.]?)?\s*(?:\([0-9]{3}\)|[0-9]{3})[-.\s]*[0-9]{3}[-.\s]*[0-9]{4}\b'
     phones = re.findall(phone_pattern, text)
     return phones
+
+def find_unread_emails(folder_name, inbox):
+    try:
+        current_folder = inbox.Folders.Item(folder_name)
+        
+        if current_folder:
+            emails = current_folder.Items
+            # emails.Sort("[ReceivedTime]", True)
+            unread_emails = [email for email in emails if email.UnRead]
+            
+            if unread_emails:
+                print(f"Found {len(unread_emails)} unread emails in {folder_name}")
+            else:
+                print(f"No unread emails found in {folder_name}")
+        return unread_emails
+    
+    except Exception as folder_error:
+        print(f"Error accessing folder '{folder_name}': {folder_error}")
 
 def get_contact_details_tms(driver, details_type, wait):
     """
@@ -263,46 +258,31 @@ def get_contact_details_tms(driver, details_type, wait):
     except Exception as e:
         print(f"Error processing screenshot: {str(e)}")
         return None
-
-def compose_response_email(email, body):
-    try:
-        reply = email.ReplyAll()
-        if reply is None:
-            print("Error: Could not create reply")
-            return False
-        reply.HTMLBody = body + reply.HTMLBody
-
-                # Display the email (this returns an Inspector object)
-        reply.Display()
-        
-        # Save the draft
-        reply.Save()
-        
-        print("Response email composed and saved as draft")
-        return True
-    except Exception as e:
-        print(f"Error composing response email: {e}")
-        return False
-
-def compose_body(extracted_number, shipper_details, consignee_details):
-    if not shipper_details['emails'] and not shipper_details['phone_numbers'] and not consignee_details['emails'] and not consignee_details['phone_numbers']:
-        body = f"<pre> {extracted_number}: no details found <br></pre>"
     
-    else:
-        body = f"""
-        <pre>
-        Number: {extracted_number}
+def login_to_tms(driver, wait):
+    """
+    Log in to TMS MercuryGate
+    """
+    try:
+        driver.get("https://armada.mercurygate.net/MercuryGate/login/spLogin.jsp?")
 
-            Shipper details:
-                emails: {shipper_details['emails']}
-                phones: {shipper_details['phone_numbers']}
+        # need to input hardcoded un and pw fields
+        username_field = wait.until(EC.presence_of_element_located((By.ID, "UserId")))
+        username_field.send_keys(USERNAME)
+        
+        # # Find password field and enter credentials
+        password_field = driver.find_element(By.ID, "Password")
+        password_field.send_keys(PASSWORD)
 
-            Consignee details:
-                emails: {consignee_details['emails']}
-                phones: {consignee_details['phone_numbers']}
-        </pre>
-        """
-    return body
+        # Click the Sign In button
+        click_button_by_XPATH(driver, '//input[@value="    Sign In    "]')
+        
+        print("Successfully logged into MercuryGate")
+
+
+    except Exception as e:
+        print(f"Login failed: {e}")
+        raise        
         
 def mark_as_read(email):
     try:
@@ -312,17 +292,34 @@ def mark_as_read(email):
     except Exception as e:
         print(f"Error marking email as read: {e}")
 
+def navigate_to_loads(driver):
+
+    try:
+        # Click the Loads button
+        click_button_by_XPATH(driver, '/html/body/table/tbody/tr[2]/td/div[5]/span')
+        
+        print("Successfully navigated to Loads page")
     
-def execute_all_email_actions():
-    unread_emails = extract_all_unread_emails()
-    count = 0
-    for email in unread_emails:
-        count += 1
-        body = extract_all_details_for_thread(email)
-        compose_response_email(email, body)
-        mark_as_read(email)
-        if count == 2:
-            return
+    except Exception as e:
+        print(f"Navigation to Loads page failed: {e}")
+        raise  
+    
+def search_in_tms(number, driver):
+    try:
+        print(f"Searching for number {number} on TMS...")
+
+        actions = ActionChains(driver)
+        for _ in range(5):
+            actions.send_keys(Keys.TAB).perform()
+            time.sleep(.5)   
+        actions.send_keys(number)
+        actions.send_keys(Keys.RETURN)
+        actions.perform()
+
+        print("Search completed successfully")
+        
+    except Exception as e:
+        print(f"Error during search: {e}")
 
 
 if __name__ == "__main__":
