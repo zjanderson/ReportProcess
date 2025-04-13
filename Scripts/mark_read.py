@@ -1,24 +1,23 @@
+import sys
 import win32com.client
 from datetime import time, datetime
-import sys
-
 
 ALL_FOLDERS = [
-    "IB Hub Dallas", 
-    "IB Hub East Point", 
-    "IB Hub Greencastle", 
-    "IB Hub Romeoville", 
-    "MCD Toys", 
-    "MCD East", 
-    "MCD South", 
-    "MCD Central", 
-    "MCD West", 
-    "MCD Supply", 
-    "Zaxby's", 
-    "Bojangles", 
-    "Stakeholders", 
-    "Supply Caddy", 
-    "BBI", 
+    "IB Hub Dallas",
+    "IB Hub East Point",
+    "IB Hub Greencastle",
+    "IB Hub Romeoville",
+    "MCD Toys",
+    "MCD East",
+    "MCD South",
+    "MCD Central",
+    "MCD West",
+    "MCD Supply",
+    "Zaxby's",
+    "Bojangles",
+    "Stakeholders",
+    "Supply Caddy",
+    "BBI",
     "CFA Canada",
     "CFA Hawaii",
     "CFA Contingency",
@@ -31,21 +30,22 @@ ALL_FOLDERS = [
     "CFA McLane",
     "CFA Perishables",
     "CFA QCD",
-    "Darden", 
-    "Darden/DDL", 
-    "Darden/DDL Maines", 
-    "Darden/DDL McLane", 
-    "Dominoes", 
+    "Darden",
+    "Darden/DDL",
+    "Darden/DDL Maines",
+    "Darden/DDL McLane",
+    "Dominoes",
     "Panda Express",
-    "Panda Produce", 
-    "Panera", 
-    "Panera Chips", 
-    "Panera PandaEx GFS", 
-    "Panera PandaEx SYGMA", 
-    "QA", 
+    "Panda Produce",
+    "Panera",
+    "Panera Chips",
+    "Panera PandaEx GFS",
+    "Panera PandaEx SYGMA",
+    "QA",
     "Fresh Beef",
-    "Weather Updates"
-    ]
+    "Weather Updates",
+]
+
 
 def access_inbox():
     try:
@@ -55,26 +55,31 @@ def access_inbox():
         inbox = namespace.GetDefaultFolder(6)
 
         return inbox
-    
+
     except Exception as e:
         print(f"Critical error in Outlook connection: {e}")
 
         return e
-    
+
+
 def mark_emails_in_folder_read(folder, military_time):
     try:
         today = datetime.now().date()
         cutoff_time = datetime.combine(today, time(hour=military_time))
         print(f"Cutoff time: {cutoff_time}")
-        
+
         # Get all unread items in the folder
         items = folder.Items.Restrict("[Unread] = True")
-        print(f"Found {len(items)} unread emails in {folder.Name}.. marking ones before {military_time}:00 as read")
-        
+        print(
+            f"Found {len(items)} unread emails in {folder.Name}.. marking ones before {military_time}:00 as read"
+        )
+
         count = 0
         for item in items:
             received_time = item.ReceivedTime
-            received_datetime = datetime.combine(received_time.date(), received_time.time())
+            received_datetime = datetime.combine(
+                received_time.date(), received_time.time()
+            )
             if received_datetime < cutoff_time:
                 item.UnRead = False
                 item.Save()
@@ -82,47 +87,34 @@ def mark_emails_in_folder_read(folder, military_time):
 
         print(f"Marked {count} emails as read in folder: {folder.Name}")
         return count
-        
+
     except Exception as e:
         print(f"Error processing folder {folder.Name}: {e}")
 
 
-def process_single_folder(folder, time, count=10):
-    if count > 0:
-        new_count = mark_emails_in_folder_read(folder, time)
-        if new_count> 0:
-            process_single_folder(folder, time, new_count)
-
-def process_folders(time):
+def process_folders(time_hours):
     inbox = access_inbox()
     for folder_name in ALL_FOLDERS:
         folder = inbox.Folders.Item(folder_name)
-        process_single_folder(folder, time)
+        process_single_folder(folder, time_hours)
+
+
+def process_single_folder(folder, time_hours, count=10):
+    if count > 0:
+        new_count = mark_emails_in_folder_read(folder, time_hours)
+        if new_count > 0:
+            process_single_folder(folder, time_hours, new_count)
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
         print("Usage: python mark_read.py <military_time>")
         print("Example: python mark_read.py 14")
         sys.exit(1)
-    
+
     try:
         military_time = int(sys.argv[1])
         if 0 <= military_time <= 23:
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
-            process_folders(military_time)
             process_folders(military_time)
 
         else:
@@ -131,4 +123,3 @@ if __name__ == "__main__":
     except ValueError:
         print("Error: Please enter a valid integer")
         sys.exit(1)
-
