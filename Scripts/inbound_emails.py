@@ -149,14 +149,16 @@ def execute_all_email_actions():
         compose_response_email(email, body)
         mark_as_read(email)
 
+
 def extract_all_details_for_thread(email):
     numbers = extract_numbers(email)
     total_body = ""
     print(f"Found {numbers} to search for")
 
     edge_options = webdriver.EdgeOptions()
+
     edge_options.set_capability("ms:loggingPrefs", {"performance": "ALL"})
-    edge_options.add_argument('--headless')
+    edge_options.add_argument("--headless")
 
     # Use Selenium to navigate and search for numbers
     driver = webdriver.Edge(options=edge_options)

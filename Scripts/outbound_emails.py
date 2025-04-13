@@ -14,7 +14,7 @@ EMAIL_TEMPLATES = {
             {html_table_with_styles}
             
             <p>If a load has picked up and/or delivered, please update MercuryGate with in/out times.</p>
-            """
+            """,
     },
     # Add more templates as needed, for example:
     "hot_loads": {
@@ -25,26 +25,29 @@ EMAIL_TEMPLATES = {
             {html_table_with_styles}
             
             <p>If a load has picked up and/or delivered, please update MercuryGate with in/out times.</p>
-            """
-    }
+            """,
+    },
 }
 
-# Import big report file 
+
+# Import big report file
 def parse_report(file_name, sheet_name):
     try:
         df = pd.read_excel(file_name, sheet_name=sheet_name)
         # Group by 'Carrier Name'
         carriers = df.groupby("Carrier Name")
         return carriers
-    except Exception as e: 
-        print(f"Failure to import sheet {sheet_name} from Report file! Error defined as: {e}")
+    except Exception as e:
+        print(
+            f"Failure to import sheet {sheet_name} from Report file! Error defined as: {e}"
+        )
         return None
 
 
 # Generate table, eliminate NaN
 def prepare_data_for_email(group):
     # Eliminate NaN values from the DataFrame
-    group = group.fillna(value='')
+    group = group.fillna(value="")
 
     #  Create HTML table for the current carrier
     table_styles = """
@@ -63,37 +66,44 @@ def prepare_data_for_email(group):
 
     return html_table_with_styles
 
+
 # Combine sheets 1 and 2 if needed
 def combine_sheets(file_name):
     try:
         # Read first two sheets
         df1 = pd.read_excel(file_name, sheet_name=0)  # First sheet
         df2 = pd.read_excel(file_name, sheet_name=1)  # Second sheet
-        
+
         # Combine the dataframes
         combined_df = pd.concat([df1, df2], ignore_index=True)
-        
+
         # Create ExcelWriter object
-        with pd.ExcelWriter(file_name, mode='a', if_sheet_exists='replace') as writer:
+        with pd.ExcelWriter(file_name, mode="a", if_sheet_exists="replace") as writer:
             # Write combined data to a new sheet
-            combined_df.to_excel(writer, sheet_name='Combined', index=False)
-            
+            combined_df.to_excel(writer, sheet_name="Combined", index=False)
+
             # Copy remaining sheets (3 and 4) as is
             df3 = pd.read_excel(file_name, sheet_name=2)
             df4 = pd.read_excel(file_name, sheet_name=3)
-            df3.to_excel(writer, sheet_name='Sheet3', index=False)
-            df4.to_excel(writer, sheet_name='Sheet4', index=False)
-            
+            df3.to_excel(writer, sheet_name="Sheet3", index=False)
+            df4.to_excel(writer, sheet_name="Sheet4", index=False)
+
         return True
-        
+
     except Exception as e:
         print(f"Failed to combine sheets. Error: {e}")
         return False
 
 
-
 # Compose a single email with body, signature, and image
-def compose_email(outlook, carrier_name, recipient, recipientCC, html_table_with_styles, template_key="overnight_update"):
+def compose_email(
+    outlook,
+    carrier_name,
+    recipient,
+    recipientCC,
+    html_table_with_styles,
+    template_key="overnight_update",
+):
     # Get signature and image if any
     signature_html, image_file = get_signature_and_image()
 
@@ -102,61 +112,70 @@ def compose_email(outlook, carrier_name, recipient, recipientCC, html_table_with
     template = EMAIL_TEMPLATES.get(template_key)
     if not template:
         raise ValueError(f"Invalid template key: {template_key} not found")
-    
+
     mail.Subject = template["subject"].format(carrier_name=carrier_name)
     mail.to = recipient
     mail.cc = recipientCC
 
     # Set deferred delivery time to 3 hours from now
     from datetime import datetime, timedelta
+
     delivery_time = datetime.now() + timedelta(hours=3)
     mail.DeferredDeliveryTime = delivery_time.strftime("%Y-%m-%d %H:%M")
 
     if image_file:
         attachment = mail.Attachments.Add(image_file)
         # Set Content ID for the image (to embed it in the HTML body)
-        attachment.PropertyAccessor.SetProperty("http://schemas.microsoft.com/mapi/proptag/0x3712001F", "signature_image")
+        attachment.PropertyAccessor.SetProperty(
+            "http://schemas.microsoft.com/mapi/proptag/0x3712001F", "signature_image"
+        )
 
     # Modify signature to reference the embedded image (if applicable)
     if "signature_image" in signature_html:
-        signature_html = signature_html.replace("src=\"", "src=\"cid:signature_image\"")
+        signature_html = signature_html.replace('src="', 'src="cid:signature_image"')
 
     # Create email body
     email_body = template["body"].format(html_table_with_styles=html_table_with_styles)
-    
+
     # Set the email body (with the table of data)
     mail.HTMLBody = email_body + signature_html
-    
+
     return mail
 
 
 # Helper function: Get signature and image
 def get_signature_and_image():
-    signature_path = os.path.join(os.getenv('APPDATA'), r"Microsoft\Signatures")
+    signature_path = os.path.join(os.getenv("APPDATA"), r"Microsoft\Signatures")
 
     # Check if the signature directory exists
     if not os.path.exists(signature_path):
         return "", None
 
     # Find the first HTML signature file
-    signature_files = [f for f in os.listdir(signature_path) if f.endswith('.htm')]
+    signature_files = [f for f in os.listdir(signature_path) if f.endswith(".htm")]
     if not signature_files:
         return "", None
 
     # Read the signature HTML
     signature_file = signature_files[0]
-    with open(os.path.join(signature_path, signature_file), 'r', encoding='latin-1') as f:
+    with open(
+        os.path.join(signature_path, signature_file), "r", encoding="latin-1"
+    ) as f:
         signature_html = f.read()
 
     # Locate the subfolder with images (if it exists)
     signature_name = os.path.splitext(signature_file)[0]
     image_folder = os.path.join(signature_path, f"{signature_name}_files")
     if os.path.exists(image_folder):
-        image_files = [f for f in os.listdir(image_folder) if f.endswith(('.png', '.jpg', '.jpeg'))]
+        image_files = [
+            f for f in os.listdir(image_folder) if f.endswith((".png", ".jpg", ".jpeg"))
+        ]
         if image_files:
             image_file = os.path.join(image_folder, image_files[0])
             # Replace image path in the signature HTML
-            signature_html = signature_html.replace('src="', f'src="file:///{image_file}"')
+            signature_html = signature_html.replace(
+                'src="', f'src="file:///{image_file}"'
+            )
         else:
             image_file = None
     else:
@@ -164,18 +183,20 @@ def get_signature_and_image():
 
     return signature_html, image_file
 
-# Helper function: make a hashmap of carrier names and contacts 
+
+# Helper function: make a hashmap of carrier names and contacts
 def get_map_carriers_contacts(contacts_file):
     contacts_df = pd.read_excel(contacts_file)
 
     map_carriers_contacts = {}
 
     for row_number, row in contacts_df.iterrows():
-        carrier_name = str(row['Carrier']).strip()
-        contact_info = str(row['AFTERHOUR CONTACTS']).strip()
+        carrier_name = str(row["Carrier"]).strip()
+        contact_info = str(row["AFTERHOUR CONTACTS"]).strip()
 
-        map_carriers_contacts[carrier_name] = contact_info 
+        map_carriers_contacts[carrier_name] = contact_info
     return map_carriers_contacts
+
 
 # Helper function: make a hashmap of locations and email groups
 def get_map_email_groups(ops_contacts):
@@ -184,14 +205,15 @@ def get_map_email_groups(ops_contacts):
     map_email_groups = {}
 
     for row_number, row in egroups_df.iterrows():
-        dest_name = str(row['Dest Name']).strip()
-        email_group = str(row['Email Group']).strip()
+        dest_name = str(row["Dest Name"]).strip()
+        email_group = str(row["Email Group"]).strip()
 
         map_email_groups[dest_name] = email_group
     return map_email_groups
 
+
 # Helper function: make a hashmap of owners and email groups ##MAKE SPREADSHEET OWNER_CONTACTS WITH OWNERS AND CORRESPONDING EMAIL GROUPS, add to build funcion
-#def get_map_owner_groups(owner_contacts):
+# def get_map_owner_groups(owner_contacts):
 #    egroups_df = pd.read_excel(owner_contacts)
 
 #    map_owner_groups = {}
@@ -204,8 +226,9 @@ def get_map_email_groups(ops_contacts):
 #    return map_owner_groups
 
 
-# Helper function - finding CC field of email groups for McD and CFA - check 'Owner' column for .contains MCD or Chik-fil-a, then reference destinations, otherwise new hashmap for Owner 
+# Helper function - finding CC field of email groups for McD and CFA - check 'Owner' column for .contains MCD or Chik-fil-a, then reference destinations, otherwise new hashmap for Owner
 # and corresponding email group
+
 
 def find_CC_recips(destinations, email_group):
 
@@ -226,7 +249,7 @@ def build_emails(file_name):
         xl = pd.ExcelFile(file_name)
         available_sheets = xl.sheet_names
         sheet_count = len(available_sheets)
-        
+
         if sheet_count == 0:
             print("No sheets found in the workbook!")
             return
@@ -235,7 +258,7 @@ def build_emails(file_name):
             if combine_sheets(file_name):
                 # Refresh Excel file handle after modification
                 xl = pd.ExcelFile(file_name)
-                available_sheets = ['Combined', 'Sheet3', 'Sheet4']
+                available_sheets = ["Combined", "Sheet3", "Sheet4"]
                 sheet_count = 3
             else:
                 print("Failed to combine sheets. Exiting.")
@@ -244,50 +267,58 @@ def build_emails(file_name):
             print("Warning: More than 4 sheets found. Only processing the first 4.")
             available_sheets = available_sheets[:4]
             sheet_count = 4
-            
+
         print(f"Processing {sheet_count} sheets")
-        
+
         # Initialize Outlook and contact maps
-        outlook = win32.Dispatch('outlook.application')
-        all_carrier_contacts = get_map_carriers_contacts("..\\Supporting_Documents\\Afterhours_Contacts.xlsx")
-        email_group = get_map_email_groups("..\\Supporting_Documents\\Ops_Contacts.xlsx")
-        
+        outlook = win32.Dispatch("outlook.application")
+        all_carrier_contacts = get_map_carriers_contacts(
+            "..\\Supporting_Documents\\Afterhours_Contacts.xlsx"
+        )
+        email_group = get_map_email_groups(
+            "..\\Supporting_Documents\\Ops_Contacts.xlsx"
+        )
+
         # Process sheets in reverse order
         for i in range(sheet_count - 1, -1, -1):
             sheet_name = available_sheets[i]
             # Determine template based on sheet count and position
-            template_key = 'overnight_update' if (sheet_count == 3 and i == 0) else 'hot_loads'
-            
+            template_key = (
+                "overnight_update" if (sheet_count == 3 and i == 0) else "hot_loads"
+            )
+
             print(f"Processing sheet {sheet_name} with template: {template_key}...")
-            
+
             carriers = parse_report(file_name, sheet_name)
             if carriers is None:
                 continue
-                
+
             for carrier_name, group in carriers:
-                dest_names = group['Dest Name'].unique()
+                dest_names = group["Dest Name"].unique()
                 html_table_with_styles = prepare_data_for_email(group)
-                
+
                 recipient = all_carrier_contacts.get(carrier_name)
                 if not recipient:
                     print(f"No contact found for carrier: {carrier_name}")
                     continue
-                    
+
                 recipientCC = ";".join(find_CC_recips(dest_names, email_group))
-                
+
                 try:
                     mail = compose_email(
-                        outlook, 
-                        carrier_name, 
-                        recipient, 
-                        recipientCC, 
+                        outlook,
+                        carrier_name,
+                        recipient,
+                        recipientCC,
                         html_table_with_styles,
-                        template_key=template_key
+                        template_key=template_key,
                     )
                     mail.Display()
                 except Exception as e:
-                    print(f"Failed to create email for {carrier_name} in {sheet_name}. Error: {e}")
-                    
+                    print(
+                        f"Failed to create email for {carrier_name} in {sheet_name}. Error: {e}"
+                    )
+
     except Exception as e:
         print(f"Failed to initialize Outlook or load contact maps. Error: {e}")
 
