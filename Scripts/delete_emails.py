@@ -1,7 +1,6 @@
-import win32com.client
-import time
 import sys
 import os
+import win32com.client
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
