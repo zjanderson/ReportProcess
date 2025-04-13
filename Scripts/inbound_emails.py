@@ -74,8 +74,14 @@ ALL_FOLDERS = [
 
 
 def access_inbox():
+    """
+    Establishes a connection to the Outlook application and
+
+    Returns:
+    Inbox: the Outlook inbox folder object if successful
+    Exception: The error object if failure
+    """
     try:
-        # Create single Outlook instance outside the loop
         outlook = win32com.client.Dispatch("Outlook.Application")
         namespace = outlook.GetNamespace("MAPI")
         inbox = namespace.GetDefaultFolder(6)
@@ -87,7 +93,10 @@ def access_inbox():
         return e
 
 
-def click_button_by_XPATH(driver, element_xpath):
+def click_button_by_xpath(driver, element_xpath):
+    """
+    Uses Selenium driver to click a button given the relevant xpath
+    """
 
     wait = WebDriverWait(driver, 10)
     target_element = wait.until(EC.element_to_be_clickable((By.XPATH, element_xpath)))
@@ -96,6 +105,10 @@ def click_button_by_XPATH(driver, element_xpath):
 
 
 def compose_body(extracted_number, shipper_details, consignee_details):
+    """
+    Composes an HTML-formatted email body with contact information for shipper and consignee
+      with the particular number from the email
+    """
     if (
         not shipper_details["emails"]
         and not shipper_details["phone_numbers"]
@@ -122,6 +135,9 @@ def compose_body(extracted_number, shipper_details, consignee_details):
 
 
 def compose_response_email(email, body):
+    """
+    Creates a reply all email and saves it in drafts
+    """
     try:
         reply = email.ReplyAll()
         if reply is None:
@@ -143,6 +159,10 @@ def compose_response_email(email, body):
 
 
 def execute_all_email_actions():
+    """
+    Main execution function that process all unread emails.
+    Coordinates the entire process from email retrieval to response generation.
+    """
     unread_emails = extract_all_unread_emails()
     for email in unread_emails:
         body = extract_all_details_for_thread(email)
@@ -151,6 +171,10 @@ def execute_all_email_actions():
 
 
 def extract_all_details_for_thread(email):
+    """
+    Extracts load numbers from an email thread, retrieves contact details for each load from TMS,
+    combines all contact info into a single return string
+    """
     numbers = extract_numbers(email)
     total_body = ""
     print(f"Found {numbers} to search for")
@@ -208,12 +232,18 @@ def extract_numbers(email):
 
 
 def find_emails(text):
+    """
+    Uses regex to find emails in a given text and returns all matches in a list
+    """
     email_pattern = r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"
     emails = re.findall(email_pattern, text)
     return emails
 
 
 def find_phone_numbers(text):
+    """
+    Uses regex to find phone numbers in a given text and returns all matches in a list
+    """
     phone_pattern = (
         r"\b(?:\+?1[-.]?)?\s*(?:\([0-9]{3}\)|[0-9]{3})[-.\s]*[0-9]{3}[-.\s]*[0-9]{4}\b"
     )
@@ -222,6 +252,9 @@ def find_phone_numbers(text):
 
 
 def find_unread_emails(folder_name, inbox):
+    """
+    Finds all unread emails in a specified Outlook folder, returns a list of unread email objects
+    """
     try:
         current_folder = inbox.Folders.Item(folder_name)
 
@@ -287,7 +320,7 @@ def login_to_tms(driver, wait):
         password_field.send_keys(PASSWORD)
 
         # Click the Sign In button
-        click_button_by_XPATH(driver, '//input[@value="    Sign In    "]')
+        click_button_by_xpath(driver, '//input[@value="    Sign In    "]')
 
         print("Successfully logged into MercuryGate")
 
@@ -297,6 +330,9 @@ def login_to_tms(driver, wait):
 
 
 def mark_as_read(email):
+    """
+    Marks a particular email object as read and saves it
+    """
     try:
         email.UnRead = False
         email.Save()
@@ -306,10 +342,13 @@ def mark_as_read(email):
 
 
 def navigate_to_loads(driver):
+    """
+    Uses Selenium to navigate to the loads tab in Mercury Gate
+    """
 
     try:
         # Click the Loads button
-        click_button_by_XPATH(driver, "/html/body/table/tbody/tr[2]/td/div[5]/span")
+        click_button_by_xpath(driver, "/html/body/table/tbody/tr[2]/td/div[5]/span")
 
         print("Successfully navigated to Loads page")
 
@@ -319,6 +358,11 @@ def navigate_to_loads(driver):
 
 
 def search_in_tms(number, driver):
+    """
+    Uses Selenium to search TMS Mercury Gate for a particular number
+
+    Note: prone to failure
+    """
     try:
         print(f"Searching for number {number} on TMS...")
 
