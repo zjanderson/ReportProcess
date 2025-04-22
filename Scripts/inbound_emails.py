@@ -3,12 +3,14 @@ import time
 import sys
 import os
 import io
+import logging
 
 import win32com.client
 import nltk
 import pytesseract
 
 from selenium import webdriver
+from datetime import datetime
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
@@ -26,8 +28,7 @@ from Supporting_Documents.credentials import USERNAME, PASSWORD
 try:
     nltk.download("punkt")
 except Exception as e:
-    print(f"Error downloading NLTK data: {e}")
-
+    print(f"Error downloading NLTK data: {e}", "error")
 
 ALL_FOLDERS = [
     # "IB Hub Dallas",
@@ -35,13 +36,13 @@ ALL_FOLDERS = [
     # "IB Hub Greencastle",
     # "IB Hub Romeoville",
     # "MCDToys",
-    # "MCD East",
-    # "MCD South",
+    "MCD East",
+    "MCD South",
     # "MCD Central",
     # "MCD West",
     # "MCD Supply",
-    # "Zaxby's",
-    # "Bojangles",
+    "Zaxby's",
+    "Bojangles",
     # "Stakeholders",
     # "Supply Caddy",
     # "BBI",
@@ -69,7 +70,7 @@ ALL_FOLDERS = [
     # "Panera PandaEx GFS",
     # "Panera PandaEx SYGMA",
     # "QA",
-    "Fresh Beef"
+    # "Fresh Beef"
 ]
 
 
@@ -89,7 +90,7 @@ def access_inbox():
         return inbox
 
     except Exception as e:
-        print(f"Critical error in Outlook connection: {e}")
+        log_message(f"Critical error in Outlook connection: {e}", "error")
         return e
 
 
@@ -141,7 +142,7 @@ def compose_response_email(email, body):
     try:
         reply = email.ReplyAll()
         if reply is None:
-            print("Error: Could not create reply")
+            log_message("Error: Could not create reply")
             return False
         reply.HTMLBody = body + reply.HTMLBody
 
@@ -151,10 +152,10 @@ def compose_response_email(email, body):
         # Save the draft
         reply.Save()
 
-        print("Response email composed and saved as draft")
+        log_message("Response email composed and saved as draft")
         return True
     except Exception as e:
-        print(f"Error composing response email: {e}")
+        log_message(f"Error composing response email: {e}", "error")
         return False
 
 
@@ -163,6 +164,7 @@ def execute_all_email_actions():
     Main execution function that process all unread emails.
     Coordinates the entire process from email retrieval to response generation.
     """
+    setup_logging()
     unread_emails = extract_all_unread_emails()
     for email in unread_emails:
         body = extract_all_details_for_thread(email)
@@ -177,12 +179,12 @@ def extract_all_details_for_thread(email):
     """
     numbers = extract_numbers(email)
     total_body = ""
-    print(f"Found {numbers} to search for")
+    log_message(f"Found {numbers} to search for")
 
     edge_options = webdriver.EdgeOptions()
 
     edge_options.set_capability("ms:loggingPrefs", {"performance": "ALL"})
-    edge_options.add_argument("--headless")
+    # edge_options.add_argument("--headless")
 
     # Use Selenium to navigate and search for numbers
     driver = webdriver.Edge(options=edge_options)
@@ -190,16 +192,16 @@ def extract_all_details_for_thread(email):
     login_to_tms(driver, wait)
 
     for number in numbers:
-        print(number)
+        log_message(number)
         navigate_to_loads(driver)
         navigate_to_loads(driver)
         navigate_to_loads(driver)
         search_in_tms(number, driver)
         time.sleep(2)
         shipper_details = get_contact_details_tms(driver, "shipper")
-        print("\nshipper details: ", shipper_details)
+        log_message("\nshipper details: ", shipper_details)
         consignee_details = get_contact_details_tms(driver, "consignee")
-        print("consignee_details: ", consignee_details)
+        log_message("consignee_details: ", consignee_details)
         number_body = compose_body(number, shipper_details, consignee_details)
         total_body += number_body
     driver.quit()
@@ -264,13 +266,15 @@ def find_unread_emails(folder_name, inbox):
             unread_emails = [email for email in emails if email.UnRead]
 
             if unread_emails:
-                print(f"Found {len(unread_emails)} unread emails in {folder_name}")
+                log_message(
+                    f"Found {len(unread_emails)} unread emails in {folder_name}"
+                )
             else:
-                print(f"No unread emails found in {folder_name}")
+                log_message(f"No unread emails found in {folder_name}")
         return unread_emails
 
     except Exception as folder_error:
-        print(f"Error accessing folder '{folder_name}': {folder_error}")
+        log_message(f"Error accessing folder '{folder_name}': {folder_error}", "error")
 
 
 def get_contact_details_tms(driver, details_type):
@@ -279,7 +283,7 @@ def get_contact_details_tms(driver, details_type):
     """
     try:
         # Take screenshot of the entire page
-        print("Taking screenshot of page...")
+        log_message("Taking screenshot of page...")
         screenshot = driver.get_screenshot_as_png()
         image = Image.open(io.BytesIO(screenshot))
         width, height = image.size
@@ -300,8 +304,27 @@ def get_contact_details_tms(driver, details_type):
         contact_detials = {"emails": emails, "phone_numbers": phone_numbers}
         return contact_detials
     except Exception as e:
-        print(f"Error processing screenshot: {str(e)}")
+        log_message(f"Error processing screenshot: {str(e)}", "error")
         return None
+
+
+def log_message(message, level="info"):
+    """
+    Logs a message to both console and file.
+
+    Args:
+        message (str): The message to log
+        level (str): The logging level ('info', 'error', 'warning', 'debug')
+    """
+    print(message)  # Print to console
+    if level == "error":
+        logging.error(message)
+    elif level == "warning":
+        logging.warning(message)
+    elif level == "debug":
+        logging.debug(message)
+    else:
+        logging.info(message)
 
 
 def login_to_tms(driver, wait):
@@ -322,10 +345,10 @@ def login_to_tms(driver, wait):
         # Click the Sign In button
         click_button_by_xpath(driver, '//input[@value="    Sign In    "]')
 
-        print("Successfully logged into MercuryGate")
+        log_message("Successfully logged into MercuryGate")
 
     except Exception as e:
-        print(f"Login failed: {e}")
+        log_message(f"Login failed: {e}", "error")
         raise
 
 
@@ -336,9 +359,9 @@ def mark_as_read(email):
     try:
         email.UnRead = False
         email.Save()
-        print("Email marked as read")
+        log_message("Email marked as read")
     except Exception as e:
-        print(f"Error marking email as read: {e}")
+        log_message(f"Error marking email as read: {e}", "error")
 
 
 def navigate_to_loads(driver):
@@ -350,10 +373,10 @@ def navigate_to_loads(driver):
         # Click the Loads button
         click_button_by_xpath(driver, "/html/body/table/tbody/tr[2]/td/div[5]/span")
 
-        print("Successfully navigated to Loads page")
+        log_message("Successfully navigated to Loads page")
 
     except Exception as e:
-        print(f"Navigation to Loads page failed: {e}")
+        log_message(f"Navigation to Loads page failed: {e}", "error")
         raise
 
 
@@ -364,7 +387,7 @@ def search_in_tms(number, driver):
     Note: prone to failure
     """
     try:
-        print(f"Searching for number {number} on TMS...")
+        log_message(f"Searching for number {number} on TMS...")
 
         actions = ActionChains(driver)
         for _ in range(5):
@@ -374,11 +397,92 @@ def search_in_tms(number, driver):
         actions.send_keys(Keys.RETURN)
         actions.perform()
 
-        print("Search completed successfully")
+        log_message("Search completed successfully")
 
     except Exception as e:
-        print(f"Error during search: {e}")
+        log_message(f"Error during search: {e}", "error")
+
+
+def setup_logging():
+    """
+    Sets up logging configuration with a new timestamp-based log file.
+    Creates a new log file each time it's called.
+
+    Returns:
+        None
+    """
+    # Create logs directory if it doesn't exist
+    log_dir = "C:\\Users\\Zachary Anderson\\Workspace\\ReportProcess\\Scripts\\logs"
+    os.makedirs(log_dir, exist_ok=True)
+
+    # Remove any existing handlers
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+
+    # Generate timestamp-based filename
+    current_time = datetime.now().strftime("%Y%m%d-%H%M")
+    log_file = os.path.join(log_dir, f"log-{current_time}.txt")
+
+    # Set up logging configuration
+    logging.basicConfig(
+        filename=log_file,
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    log_message("Logging initialized with new log file")
 
 
 if __name__ == "__main__":
+    execute_all_email_actions()
+    time.sleep(60 * 20)
+    execute_all_email_actions()
+    time.sleep(60 * 20)
+    execute_all_email_actions()
+    time.sleep(60 * 20)
+    execute_all_email_actions()
+    time.sleep(60 * 20)
+    execute_all_email_actions()
+    time.sleep(60 * 20)
+    execute_all_email_actions()
+    time.sleep(60 * 20)
+    execute_all_email_actions()
+    time.sleep(60 * 20)
+    execute_all_email_actions()
+    time.sleep(60 * 20)
+    execute_all_email_actions()
+    time.sleep(60 * 20)
+    execute_all_email_actions()
+    time.sleep(60 * 20)
+    execute_all_email_actions()
+    time.sleep(60 * 20)
+    execute_all_email_actions()
+    time.sleep(60 * 20)
+    execute_all_email_actions()
+    time.sleep(60 * 20)
+    execute_all_email_actions()
+    time.sleep(60 * 20)
+    execute_all_email_actions()
+    time.sleep(60 * 20)
+    execute_all_email_actions()
+    time.sleep(60 * 20)
+    execute_all_email_actions()
+    time.sleep(60 * 20)
+    execute_all_email_actions()
+    time.sleep(60 * 20)
+    execute_all_email_actions()
+    time.sleep(60 * 20)
+    execute_all_email_actions()
+    time.sleep(60 * 20)
+    execute_all_email_actions()
+    time.sleep(60 * 20)
+    execute_all_email_actions()
+    time.sleep(60 * 20)
+    execute_all_email_actions()
+    time.sleep(60 * 20)
+    execute_all_email_actions()
+    time.sleep(60 * 20)
+    execute_all_email_actions()
+    time.sleep(60 * 20)
     execute_all_email_actions()
