@@ -36,13 +36,13 @@ ALL_FOLDERS = [
     # "IB Hub Greencastle",
     # "IB Hub Romeoville",
     # "MCDToys",
-    "MCD East",
+    # "MCD East",
     "MCD South",
-    # "MCD Central",
+    "MCD Central",
     # "MCD West",
     # "MCD Supply",
-    "Zaxby's",
-    "Bojangles",
+    # "Zaxby's",
+    # "Bojangles",
     # "Stakeholders",
     # "Supply Caddy",
     # "BBI",
@@ -63,12 +63,12 @@ ALL_FOLDERS = [
     # "Darden/DDL Maines",
     # "Darden/DDL McLane",
     # "Dominoes",
-    # "Panda Express",
-    # "Panda Produce",
-    # "Panera",
-    # "Panera Chips",
-    # "Panera PandaEx GFS",
-    # "Panera PandaEx SYGMA",
+    "Panda Express",
+    "Panda Produce",
+    "Panera",
+    "Panera Chips",
+    "Panera PandaEx GFS",
+    "Panera PandaEx SYGMA",
     # "QA",
     # "Fresh Beef"
 ]
@@ -171,6 +171,8 @@ def execute_all_email_actions():
         compose_response_email(email, body)
         mark_as_read(email)
 
+    log_message("End file")
+
 
 def extract_all_details_for_thread(email):
     """
@@ -184,10 +186,11 @@ def extract_all_details_for_thread(email):
     edge_options = webdriver.EdgeOptions()
 
     edge_options.set_capability("ms:loggingPrefs", {"performance": "ALL"})
-    # edge_options.add_argument("--headless")
+    edge_options.add_argument("--headless")
 
     # Use Selenium to navigate and search for numbers
     driver = webdriver.Edge(options=edge_options)
+    # driver.maximize_window()
     wait = WebDriverWait(driver, 20)
     login_to_tms(driver, wait)
 
@@ -412,7 +415,7 @@ def setup_logging():
         None
     """
     # Create logs directory if it doesn't exist
-    log_dir = "C:\\Users\\Zachary Anderson\\Workspace\\ReportProcess\\Scripts\\logs"
+    log_dir = "C:\\Users\\Zachary Anderson\\Workspace\\ReportProcess\\Scripts\\logs\\inbound"
     os.makedirs(log_dir, exist_ok=True)
 
     # Remove any existing handlers

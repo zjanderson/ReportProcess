@@ -1,6 +1,10 @@
 import sys
 import os
+import logging
+
 import win32com.client
+from datetime import datetime
+
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -61,9 +65,63 @@ def delete_app_emails_from_folder(folder_path):
 
 def execute_app_deletes():
     for folder in DELETE_FOLDERS:
-        print(folder)
+        log_message(f"Folder: {folder}")
         delete_app_emails_from_folder(folder)
 
 
+def log_message(message, level="info"):
+    """
+    Logs a message to both console and file.
+
+    Args:
+        message (str): The message to log
+        level (str): The logging level ('info', 'error', 'warning', 'debug')
+    """
+    print(message)  # Print to console
+    if level == "error":
+        logging.error(message)
+    elif level == "warning":
+        logging.warning(message)
+    elif level == "debug":
+        logging.debug(message)
+    else:
+        logging.info(message)
+
+
+def setup_logging():
+    """
+    Sets up logging configuration with a new timestamp-based log file.
+    Creates a new log file each time it's called.
+
+    Returns:
+        None
+    """
+    # Create logs directory if it doesn't exist
+    log_dir = (
+        "C:\\Users\\Zachary Anderson\\Workspace\\ReportProcess\\Scripts\\logs\\deletes"
+    )
+    os.makedirs(log_dir, exist_ok=True)
+
+    # Remove any existing handlers
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+
+    # Generate timestamp-based filename
+    current_time = datetime.now().strftime("%Y%m%d-%H%M")
+    log_file = os.path.join(log_dir, f"log-{current_time}.txt")
+
+    # Set up logging configuration
+    logging.basicConfig(
+        filename=log_file,
+        level=logging.INFO,
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+    log_message("Logging initialized with new log file")
+
+
 if __name__ == "__main__":
+    setup_logging()
     execute_app_deletes()
+    log_message("Done deleting")

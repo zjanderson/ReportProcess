@@ -1,3 +1,6 @@
 Supporting_Documents/*
 venv/*
-Scripts/logs/*
+Scripts/logs/inbound/*
+Scripts/logs/mark_read/*
+Scripts/logs/deletes/*
+
