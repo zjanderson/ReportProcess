@@ -35,10 +35,10 @@ ALL_FOLDERS = [
     # "IB Hub East Point",
     # "IB Hub Greencastle",
     # "IB Hub Romeoville",
-    # "MCDToys",
+    # "MCD Toys",
     # "MCD East",
-    "MCD South",
-    "MCD Central",
+    # "MCD South",
+    # "MCD Central",
     # "MCD West",
     # "MCD Supply",
     # "Zaxby's",
@@ -63,12 +63,12 @@ ALL_FOLDERS = [
     # "Darden/DDL Maines",
     # "Darden/DDL McLane",
     # "Dominoes",
-    "Panda Express",
-    "Panda Produce",
-    "Panera",
-    "Panera Chips",
-    "Panera PandaEx GFS",
-    "Panera PandaEx SYGMA",
+    # "Panda Express",
+    # "Panda Produce",
+    # "Panera",
+    # "Panera Chips",
+    # "Panera PandaEx GFS",
+    # "Panera PandaEx SYGMA",
     # "QA",
     # "Fresh Beef"
 ]
@@ -147,7 +147,7 @@ def compose_response_email(email, body):
         reply.HTMLBody = body + reply.HTMLBody
 
         # Display the email (this returns an Inspector object)
-        reply.Display()
+        # reply.Display()
 
         # Save the draft
         reply.Save()
@@ -439,53 +439,4 @@ def setup_logging():
 
 if __name__ == "__main__":
     execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
-    time.sleep(60 * 20)
-    execute_all_email_actions()
+
