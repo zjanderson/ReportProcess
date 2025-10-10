@@ -152,7 +152,7 @@ def setup_logging():
         None
     """
     # Create logs directory if it doesn't exist
-    log_dir = "C:\\Users\\Zachary Anderson\\Workspace\\ReportProcess\\Scripts\\logs\\mark_read"
+    log_dir = "C:\\Users\\zanderson\\Documents\\ReportProcess\\Scripts\\logs\\mark_read"
     os.makedirs(log_dir, exist_ok=True)
 
     # Remove any existing handlers

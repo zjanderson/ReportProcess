@@ -98,7 +98,7 @@ def setup_logging():
     """
     # Create logs directory if it doesn't exist
     log_dir = (
-        "C:\\Users\\Zachary Anderson\\Workspace\\ReportProcess\\Scripts\\logs\\deletes"
+        "C:\\Users\\zanderson\\Documents\\ReportProcess\\Scripts\\logs\\deletes"
     )
     os.makedirs(log_dir, exist_ok=True)
 
