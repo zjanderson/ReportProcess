@@ -1,14 +1,15 @@
-import sys
-import os
-import logging
+"""Script to delete emails from specified Outlook folders."""
 
-import win32com.client
+import logging
+import os
+import sys
 from datetime import datetime
 
-
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+import win32com.client
 
 from Supporting_Documents.credentials import MYEMAIL
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 
 DELETE_FOLDERS = [
@@ -32,6 +33,13 @@ DELETE_FOLDERS = [
 
 
 def delete_app_emails_from_folder(folder_path):
+    """
+    Delete all emails from a specified Outlook folder.
+    
+    Args:
+        folder_path (str): Path to the folder to delete emails from.
+                          Supports wildcard patterns with "*" for subfolders.
+    """
     outlook = win32com.client.Dispatch("Outlook.Application")
     namespace = outlook.GetNamespace("MAPI")
     inbox = namespace.Folders.Item(MYEMAIL)
@@ -64,6 +72,9 @@ def delete_app_emails_from_folder(folder_path):
 
 
 def execute_app_deletes():
+    """
+    Execute deletion of emails from all folders specified in DELETE_FOLDERS.
+    """
     for folder in DELETE_FOLDERS:
         log_message(f"Folder: {folder}")
         delete_app_emails_from_folder(folder)

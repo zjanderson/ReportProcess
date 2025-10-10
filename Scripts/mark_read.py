@@ -1,10 +1,11 @@
-import sys
-import os
-
-import win32com.client
-from datetime import time, datetime
+"""Script to mark emails as read based on military time cutoff."""
 
 import logging
+import os
+import sys
+from datetime import datetime, time
+
+import win32com.client
 
 
 ALL_FOLDERS = [
@@ -53,6 +54,13 @@ ALL_FOLDERS = [
 
 
 def access_inbox():
+    """
+    Establishes a connection to the Outlook application and returns the inbox.
+    
+    Returns:
+        Inbox: the Outlook inbox folder object if successful
+        Exception: The error object if failure
+    """
     try:
         # Create single Outlook instance outside the loop
         outlook = win32com.client.Dispatch("Outlook.Application")
@@ -61,7 +69,7 @@ def access_inbox():
 
         return inbox
 
-    except Exception as e:
+    except (AttributeError, OSError, RuntimeError) as e:
         log_message(f"Critical error in Outlook connection: {e}", level="error")
 
         return e
@@ -86,16 +94,27 @@ def log_message(message, level="info"):
         logging.info(message)
 
 
-def mark_emails_in_folder_read(folder, military_time):
+def mark_emails_in_folder_read(folder, cutoff_hour):
+    """
+    Mark emails in a folder as read if they were received before the cutoff time.
+    
+    Args:
+        folder: Outlook folder object
+        cutoff_hour (int): Military time hour (0-23) for cutoff
+    
+    Returns:
+        int: Number of emails marked as read
+    """
     try:
         today = datetime.now().date()
-        cutoff_time = datetime.combine(today, time(hour=military_time))
+        cutoff_time = datetime.combine(today, time(hour=cutoff_hour))
         message = f"Cutoff time: {cutoff_time}"
         log_message(message)
 
         # Get all unread items in the folder
         items = folder.Items.Restrict("[Unread] = True")
-        message = f"Found {len(items)} unread emails in {folder.Name}.. marking ones before {military_time}:00 as read"
+        message = (f"Found {len(items)} unread emails in {folder.Name}.. "
+                  f"marking ones before {cutoff_hour}:00 as read")
 
         count = 0
         for item in items:
@@ -111,11 +130,17 @@ def mark_emails_in_folder_read(folder, military_time):
         log_message(f"Marked {count} emails as read in folder: {folder.Name}")
         return count
 
-    except Exception as e:
+    except (AttributeError, RuntimeError) as e:
         log_message(f"Error processing folder {folder.Name}: {e}", "error")
 
 
 def process_folders(time_hours):
+    """
+    Process all folders to mark emails as read based on time cutoff.
+    
+    Args:
+        time_hours (int): Military time hour (0-23) for cutoff
+    """
     try:
         inbox = access_inbox()
         if isinstance(inbox, Exception):
@@ -127,16 +152,24 @@ def process_folders(time_hours):
                 log_message(f"Attempting to process folder: {folder_name}")
                 folder = inbox.Folders.Item(folder_name)
                 process_single_folder(folder, time_hours)
-            except Exception as e:
+            except (AttributeError, RuntimeError) as e:
                 log_message(
                     f"Error accessing folder '{folder_name}': {str(e)}", level="error"
                 )
                 continue
-    except Exception as e:
+    except (AttributeError, RuntimeError) as e:
         log_message(f"Unexpected error in process_folders: {str(e)}", level="error")
 
 
 def process_single_folder(folder, time_hours, count=10):
+    """
+    Recursively process a single folder to mark emails as read.
+    
+    Args:
+        folder: Outlook folder object
+        time_hours (int): Military time hour (0-23) for cutoff
+        count (int): Number of emails to process in this iteration
+    """
     if count > 0:
         new_count = mark_emails_in_folder_read(folder, time_hours)
         if new_count > 0:
@@ -181,9 +214,9 @@ if __name__ == "__main__":
         sys.exit(1)
 
     try:
-        military_time = int(sys.argv[1])
-        if 0 <= military_time <= 23:
-            process_folders(military_time)
+        military_time_hour = int(sys.argv[1])
+        if 0 <= military_time_hour <= 23:
+            process_folders(military_time_hour)
             log_message("End file")
 
         else:

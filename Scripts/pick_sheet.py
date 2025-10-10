@@ -1,55 +1,72 @@
-import pandas as pd
-import win32com.client as win32
 import os
 import sys
 from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Tuple
+import pandas as pd
+import win32com.client as win32
 
-# Email templates
-EMAIL_TEMPLATES = {
-    "pick_updates": {
-        "subject": "Pickup Updates - {carrier_name}",
-        "body": """
-            <p>Please confirm if the following loads have picked up:</p>
-            
-            {html_table_with_styles}
-            
-            <p>If a load has picked up, please update MercuryGate with in/out times, and provide current location and ETA in this thread.</p>
-            """,
-    },
-    # Add more templates as needed, for example:
-    "hot_loads": {
-        "subject": "Pickup Updates - {carrier_name}",
-        "body": """
-            <p>Please confirm if the following loads have picked up:</p>
-            
-            {html_table_with_styles}
-            
-            <p>If a load has picked up, please update MercuryGate with in/out times, and provide current location and ETA in this thread.</p>
-            """,
-    },
+# Configuration
+CONFIG = {
+    'deferred_delivery_hours': 6,  # Hours to defer email delivery
+    'required_columns': ['Carrier Name', 'Dest Name'],  # Required columns in Excel
+    'contact_files': {
+        'carriers': '..\\Supporting_Documents\\Afterhours_Contacts.xlsx',
+        'ops': '..\\Supporting_Documents\\Ops_Contacts.xlsx'
+    }
+}
+
+# Email template
+EMAIL_TEMPLATE = {
+    "subject": "Pickup Updates - {carrier_name}",
+    "body": """
+        <p>Please confirm if the following loads have picked up:</p>
+        
+        {html_table_with_styles}
+        
+        <p>If a load has picked up, please update MercuryGate with in/out times, and provide current location and ETA in this thread.</p>
+        """,
 }
 
 
+# Validation function
+def validate_excel_columns(df: pd.DataFrame, sheet_name: str) -> bool:
+    """Validate that required columns exist in the DataFrame."""
+    missing_columns = [col for col in CONFIG['required_columns'] if col not in df.columns]
+    if missing_columns:
+        print(f"❌ Error: Missing required columns in sheet '{sheet_name}': {missing_columns}")
+        print(f"Available columns: {list(df.columns)}")
+        return False
+    return True
+
+
 # Import big report file
-def parse_report(file_name, sheet_name):
+def parse_report(file_name: str, sheet_name: str) -> Optional[pd.core.groupby.DataFrameGroupBy]:
+    """Parse Excel file and group by Carrier Name with validation."""
     try:
         df = pd.read_excel(file_name, sheet_name=sheet_name)
-        # Group by 'Carrier Name'
-        carriers = df.groupby("Carrier Name")
-        return carriers
-    except Exception as e:
-        print(
-            f"Failure to import sheet {sheet_name} from Report file! Error defined as: {e}"
-        )
+        
+        # Validate required columns
+        if not validate_excel_columns(df, sheet_name):
+            return None
+        if df.empty:
+            print(f"⚠️ Warning: Sheet '{sheet_name}' is empty. No data to process.")
+            return None
+        else:
+            # Group by 'Carrier Name'
+            carriers = df.groupby("Carrier Name")
+            return carriers
+    except (FileNotFoundError, KeyError) as e:
+        print(f"❌ Failure to import sheet {sheet_name} from Report file! Error: {e}")
         return None
 
 
 # Generate table, eliminate NaN
-def prepare_data_for_email(group):
+def prepare_data_for_email(group: pd.DataFrame) -> str:
+    """Prepare DataFrame for email by cleaning data and creating HTML table."""
     # Eliminate NaN values from the DataFrame
     group = group.fillna(value="")
 
-    #  Create HTML table for the current carrier
+    # Create HTML table for the current carrier
     table_styles = """
         <style>
         table, th, td {
@@ -59,7 +76,7 @@ def prepare_data_for_email(group):
         }
         </style>
         """
-    html_table = group.to_html(index=False)  # Convert  to HTML table (without index)
+    html_table = group.to_html(index=False)  # Convert to HTML table (without index)
 
     # Add styling to the table
     html_table_with_styles = table_styles + html_table
@@ -67,60 +84,86 @@ def prepare_data_for_email(group):
     return html_table_with_styles
 
 
-# Combine sheets 1 and 2 if needed
-#def combine_sheets(file_name):
-#    try:
-#        # Read first two sheets
-#        df1 = pd.read_excel(file_name, sheet_name=0)  # First sheet
-#        df2 = pd.read_excel(file_name, sheet_name=1)  # Second sheet
-#
-#        # Combine the dataframes
-#        combined_df = pd.concat([df1, df2], ignore_index=True)
-#
-#        # Create ExcelWriter object
-#        with pd.ExcelWriter(file_name, mode="a", if_sheet_exists="replace") as writer:
-#            # Write combined data to a new sheet
-#            combined_df.to_excel(writer, sheet_name="Combined", index=False)
-#
-#            # Copy remaining sheets (3 and 4) as is
-#            df3 = pd.read_excel(file_name, sheet_name=2)
-#            df4 = pd.read_excel(file_name, sheet_name=3)
-#            df3.to_excel(writer, sheet_name="Sheet3", index=False)
-#            df4.to_excel(writer, sheet_name="Sheet4", index=False)
-#
-#        return True
-#
-#    except Exception as e:
-#        print(f"Failed to combine sheets. Error: {e}")
-#        return False
+# Sheet processing function
+def get_sheet_name(file_name: str) -> str:
+    """Get the first (and only) sheet name from Excel file."""
+    xl = pd.ExcelFile(file_name)
+    available_sheets = xl.sheet_names
+    
+    if not available_sheets:
+        raise ValueError("❌ No sheets found in the workbook!")
+    
+    if len(available_sheets) > 1:
+        print(f"⚠️ Warning: Multiple sheets found. Using first sheet: '{available_sheets[0]}'")
+    
+    return available_sheets[0]
+
+
+def initialize_outlook_and_contacts() -> Tuple[object, Dict[str, str], Dict[str, str]]:
+    """Initialize Outlook and load contact mappings."""
+    try:
+        outlook = win32.Dispatch("outlook.application")
+        all_carrier_contacts = get_map_carriers_contacts(CONFIG['contact_files']['carriers'])
+        email_group = get_map_email_groups(CONFIG['contact_files']['ops'])
+        return outlook, all_carrier_contacts, email_group
+    except (Exception, FileNotFoundError) as e:
+        print(f"❌ Failed to initialize Outlook or load contact maps. Error: {e}")
+        raise
+
+
+def process_carrier_group(
+    outlook: object,
+    carrier_name: str,
+    group: pd.DataFrame,
+    all_carrier_contacts: Dict[str, str],
+    email_group: Dict[str, str]
+) -> None:
+    """Process a single carrier group and create email."""
+    dest_names = group["Dest Name"].unique()
+    html_table_with_styles = prepare_data_for_email(group)
+
+    recipient = all_carrier_contacts.get(carrier_name)
+    if not recipient:
+        print(f"⚠️ No contact found for carrier: {carrier_name}")
+        return
+
+    recipientCC = ";".join(find_CC_recips(dest_names, email_group))
+
+    try:
+        mail = compose_email(
+            outlook,
+            carrier_name,
+            recipient,
+            recipientCC,
+            html_table_with_styles
+        )
+        mail.Display()
+        print(f"✅ Email created for {carrier_name}")
+    except (ValueError, AttributeError) as e:
+        print(f"❌ Failed to create email for {carrier_name}. Error: {e}")
 
 
 # Compose a single email with body, signature, and image
 def compose_email(
     outlook,
-    carrier_name,
-    recipient,
-    recipientCC,
-    html_table_with_styles,
-    template_key="pick_updates",
-):
+    carrier_name: str,
+    recipient: str,
+    recipientCC: str,
+    html_table_with_styles: str
+) -> object:
+    """Compose a single email with deferred delivery and signature."""
     # Get signature and image if any
     signature_html, image_file = get_signature_and_image()
 
     # Create a new email
     mail = outlook.CreateItem(0)  # 0 = Mail item
-    template = EMAIL_TEMPLATES.get(template_key)
-    if not template:
-        raise ValueError(f"Invalid template key: {template_key} not found")
 
-    mail.Subject = template["subject"].format(carrier_name=carrier_name)
+    mail.Subject = EMAIL_TEMPLATE["subject"].format(carrier_name=carrier_name)
     mail.to = recipient
     mail.cc = recipientCC
 
-    # Set deferred delivery time to 6 hours from now
-    from datetime import datetime, timedelta
-
-    delivery_time = datetime.now() + timedelta(hours=6)
+    # Set deferred delivery time (configurable)
+    delivery_time = datetime.now() + timedelta(hours=CONFIG['deferred_delivery_hours'])
     mail.DeferredDeliveryTime = delivery_time.strftime("%Y-%m-%d %H:%M")
 
     if image_file:
@@ -135,7 +178,7 @@ def compose_email(
         signature_html = signature_html.replace('src="', 'src="cid:signature_image"')
 
     # Create email body
-    email_body = template["body"].format(html_table_with_styles=html_table_with_styles)
+    email_body = EMAIL_TEMPLATE["body"].format(html_table_with_styles=html_table_with_styles)
 
     # Set the email body (with the table of data)
     mail.HTMLBody = email_body + signature_html
@@ -185,53 +228,46 @@ def get_signature_and_image():
 
 
 # Helper function: make a hashmap of carrier names and contacts
-def get_map_carriers_contacts(contacts_file):
-    contacts_df = pd.read_excel(contacts_file)
+def get_map_carriers_contacts(contacts_file: str) -> Dict[str, str]:
+    """Create a mapping of carrier names to their contact information."""
+    try:
+        contacts_df = pd.read_excel(contacts_file)
+        map_carriers_contacts = {}
 
-    map_carriers_contacts = {}
-
-    for row_number, row in contacts_df.iterrows():
-        carrier_name = str(row["Carrier"]).strip()
-        contact_info = str(row["AFTERHOUR CONTACTS"]).strip()
-
-        map_carriers_contacts[carrier_name] = contact_info
-    return map_carriers_contacts
+        for _, row in contacts_df.iterrows():
+            carrier_name = str(row["Carrier"]).strip()
+            contact_info = str(row["AFTERHOUR CONTACTS"]).strip()
+            map_carriers_contacts[carrier_name] = contact_info
+        return map_carriers_contacts
+    except (FileNotFoundError, KeyError) as e:
+        print(f"❌ Error loading carrier contacts from {contacts_file}: {e}")
+        return {}
 
 
 # Helper function: make a hashmap of locations and email groups
-def get_map_email_groups(ops_contacts):
-    egroups_df = pd.read_excel(ops_contacts)
+def get_map_email_groups(ops_contacts: str) -> Dict[str, str]:
+    """Create a mapping of destination names to email groups."""
+    try:
+        egroups_df = pd.read_excel(ops_contacts)
+        map_email_groups = {}
 
-    map_email_groups = {}
-
-    for row_number, row in egroups_df.iterrows():
-        dest_name = str(row["Dest Name"]).strip()
-        email_group = str(row["Email Group"]).strip()
-
-        map_email_groups[dest_name] = email_group
-    return map_email_groups
-
-
-# Helper function: make a hashmap of owners and email groups ##MAKE SPREADSHEET OWNER_CONTACTS WITH OWNERS AND CORRESPONDING EMAIL GROUPS, add to build funcion
-# def get_map_owner_groups(owner_contacts):
-#    egroups_df = pd.read_excel(owner_contacts)
-
-#    map_owner_groups = {}
-
-#    for row_number, row in egroups_df.iterrows():
-#        owner = str(row['Owner']).strip()
-#        email_group = str(row['Email Group']).strip()
-
-#        map_owner_groups[owner] = email_group
-#    return map_owner_groups
+        for _, row in egroups_df.iterrows():
+            dest_name = str(row["Dest Name"]).strip()
+            email_group = str(row["Email Group"]).strip()
+            map_email_groups[dest_name] = email_group
+        return map_email_groups
+    except (FileNotFoundError, KeyError) as e:
+        print(f"❌ Error loading ops contacts from {ops_contacts}: {e}")
+        return {}
 
 
-# Helper function - finding CC field of email groups for McD and CFA - check 'Owner' column for .contains MCD or Chik-fil-a, then reference destinations, otherwise new hashmap for Owner
-# and corresponding email group
+# Future enhancement: Owner-based email groups
+# TODO: Implement get_map_owner_groups() when Owner_Contacts.xlsx is created
+# This would allow for owner-specific email routing based on the Owner column
 
 
-def find_CC_recips(destinations, email_group):
-
+def find_CC_recips(destinations: List[str], email_group: Dict[str, str]) -> set:
+    """Find CC recipients based on destination locations."""
     CC_field = set()
 
     for location in destinations:
@@ -242,85 +278,30 @@ def find_CC_recips(destinations, email_group):
     return CC_field
 
 
-# Build and Display emails
-def build_emails(file_name):
+# Main email building function
+def build_emails(file_name: str) -> None:
+    """Main function to build and display emails from Excel file."""
     try:
-        # Get available sheets from the Excel file
-        xl = pd.ExcelFile(file_name)
-        available_sheets = xl.sheet_names
-        sheet_count = len(available_sheets)
-
-        if sheet_count == 0:
-            print("No sheets found in the workbook!")
-            return
-        elif sheet_count == 4:
-            print("Found 4 sheets. Combining sheets 1 and 2...")
-            if combine_sheets(file_name):
-                # Refresh Excel file handle after modification
-                xl = pd.ExcelFile(file_name)
-                available_sheets = ["Combined", "Sheet3", "Sheet4"]
-                sheet_count = 3
-            else:
-                print("Failed to combine sheets. Exiting.")
-                return
-        elif sheet_count > 4:
-            print("Warning: More than 4 sheets found. Only processing the first 4.")
-            available_sheets = available_sheets[:4]
-            sheet_count = 4
-
-        print(f"Processing {sheet_count} sheets")
+        # Get the sheet name (only one sheet expected)
+        sheet_name = get_sheet_name(file_name)
+        print(f"📧 Processing sheet: '{sheet_name}'")
 
         # Initialize Outlook and contact maps
-        outlook = win32.Dispatch("outlook.application")
-        all_carrier_contacts = get_map_carriers_contacts(
-            "..\\Supporting_Documents\\Afterhours_Contacts.xlsx"
-        )
-        email_group = get_map_email_groups(
-            "..\\Supporting_Documents\\Ops_Contacts.xlsx"
-        )
+        outlook, all_carrier_contacts, email_group = initialize_outlook_and_contacts()
 
-        # Process sheets in reverse order
-        for i in range(sheet_count - 1, -1, -1):
-            sheet_name = available_sheets[i]
-            # Determine template based on sheet count, this is placeholder as I'm only using one template currently
-            template_key = (
-                "pick_updates" if (i == 0) else "hot_loads"
+        # Parse the report and get carriers
+        carriers = parse_report(file_name, sheet_name)
+        if carriers is None:
+            return
+
+        # Process each carrier group
+        for carrier_name, group in carriers:
+            process_carrier_group(
+                outlook, carrier_name, group, all_carrier_contacts, email_group
             )
 
-            print(f"Processing sheet {sheet_name} with template: {template_key}...")
-
-            carriers = parse_report(file_name, sheet_name)
-            if carriers is None:
-                continue
-
-            for carrier_name, group in carriers:
-                dest_names = group["Dest Name"].unique()
-                html_table_with_styles = prepare_data_for_email(group)
-
-                recipient = all_carrier_contacts.get(carrier_name)
-                if not recipient:
-                    print(f"No contact found for carrier: {carrier_name}")
-                    continue
-
-                recipientCC = ";".join(find_CC_recips(dest_names, email_group))
-
-                try:
-                    mail = compose_email(
-                        outlook,
-                        carrier_name,
-                        recipient,
-                        recipientCC,
-                        html_table_with_styles,
-                        template_key=template_key,
-                    )
-                    mail.Display()
-                except Exception as e:
-                    print(
-                        f"Failed to create email for {carrier_name} in {sheet_name}. Error: {e}"
-                    )
-
-    except Exception as e:
-        print(f"Failed to initialize Outlook or load contact maps. Error: {e}")
+    except (FileNotFoundError, ValueError, AttributeError, KeyError) as e:
+        print(f"❌ Failed to build emails. Error: {e}")
 
 
 if __name__ == "__main__":
