@@ -4,6 +4,7 @@ import sys
 import os
 import io
 import logging
+from collections import deque
 
 import win32com.client
 import nltk
@@ -36,9 +37,9 @@ ALL_FOLDERS = [
     # "IB Hub Greencastle",
     # "IB Hub Romeoville",
     # "MCD Toys",
-    # "MCD East",
+    "MCD East",
     # "MCD South",
-    # "MCD Central",
+    "MCD Central",
     # "MCD West",
     # "MCD Supply",
     # "Zaxby's",
@@ -63,14 +64,14 @@ ALL_FOLDERS = [
     # "Darden/DDL Maines",
     # "Darden/DDL McLane",
     # "Dominoes",
-    # "Panda Express",
-    # "Panda Produce",
-    # "Panera",
-    # "Panera Chips",
-    # "Panera PandaEx GFS",
-    # "Panera PandaEx SYGMA",
+    "Panda Express",
+    "Panda Produce",
+    "Panera",
+    "Panera Chips",
+    "Panera PandaEx GFS",
+    "Panera PandaEx SYGMA",
     # "QA",
-    # "Fresh Beef"
+    # "Fresh Beef",
 ]
 
 
@@ -116,7 +117,7 @@ def compose_body(extracted_number, shipper_details, consignee_details):
         and not consignee_details["emails"]
         and not consignee_details["phone_numbers"]
     ):
-        body = f"<pre> {extracted_number}: no details found <br></pre>"
+        body = f"<pre> {extracted_number}: Load found but no details could be extracted. Maybe check manually <br></pre>"
 
     else:
         body = f"""
@@ -173,6 +174,107 @@ def execute_all_email_actions():
 
     log_message("End file")
 
+def handle_screenshot(driver):
+    screenshot = driver.get_screenshot_as_png()
+    image = Image.open(io.BytesIO(screenshot))
+
+    image = image.convert("L")  # Convert to grayscale
+    image = image.point(lambda x: 0 if x < 128 else 255, "1")  # Increase contrast
+
+    return image
+
+def decide_state(driver):
+    image = handle_screenshot(driver)
+    custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@.,_-:/ ()"'
+    text = pytesseract.image_to_string(image, config=custom_config)
+    if "noloadsfound." in text.lower():
+        print("DEFINITELY NO LOADS")
+        return "no loads found"
+    elif "phone" in text.lower():
+        print("DEFINITELY LOADS")
+        return "loads found"
+    print("UNKNOWN")
+    return "unknown"
+
+def handle_loads_found(driver, number):
+    shipper_details = get_contact_details_tms(driver, "shipper")
+    log_message(f"Shipper details: {shipper_details}")
+    consignee_details = get_contact_details_tms(driver, "consignee")
+    log_message(f"Consignee details: {consignee_details}")
+    number_body = compose_body(number, shipper_details, consignee_details)
+    return number_body
+
+
+
+
+def process_single_number(number, driver):
+    """
+    Process a single number through TMS, handling all the necessary steps.
+    Returns a tuple of (success, result) where:
+    - success is a boolean indicating if the processing was successful
+    - result is either the body text if successful, or None if failed
+    """
+    try:
+        navigate_to_loads(driver)
+        navigate_to_loads(driver)
+        navigate_to_loads(driver)
+        
+        if not search_in_tms(number, driver):
+            return False, None
+            
+        time.sleep(2)
+        state = decide_state(driver)
+        if state == "loads found":
+            return True, handle_loads_found(driver, number)
+        elif state == "no loads found":
+            return True, f"Definitely no loads for {number} \n\n"
+        else:
+            log_message(f"Unknown state for number {number}")
+            return False, None
+            
+    except Exception as e:
+        log_message(f"Error processing number {number}: {str(e)}", "error")
+        return False, None
+
+def process_numbers(driver, numbers, processed_numbers=None, attempt=1, max_retries=3):
+    """
+    Process a list of numbers through TMS, handling retries recursively.
+    
+    Args:
+        driver: The Selenium WebDriver instance
+        numbers: List or deque of numbers to process
+        processed_numbers: Set of numbers that have been successfully processed
+        attempt: Current attempt number for retries
+        max_retries: Maximum number of retry attempts allowed
+        
+    Returns:
+        str: The accumulated body text from successfully processed numbers
+    """
+    if processed_numbers is None:
+        processed_numbers = set()
+        
+    total_body = ""
+    retry_numbers = []
+    
+    for number in numbers:
+        if number in processed_numbers:
+            continue
+            
+        success, result = process_single_number(number, driver)
+        if success:
+            total_body += result
+            processed_numbers.add(number)
+        else:
+            retry_numbers.append(number)
+    
+    # If we have numbers to retry and haven't exceeded max retries, process them recursively
+    if retry_numbers and attempt < max_retries:
+        log_message(f"Retrying {len(retry_numbers)} numbers (attempt {attempt + 1})")
+        total_body += process_numbers(driver, retry_numbers, processed_numbers, attempt + 1, max_retries)
+    elif retry_numbers:
+        log_message(f"Max retries reached for {len(retry_numbers)} numbers", "warning")
+        
+    return total_body
 
 def extract_all_details_for_thread(email):
     """
@@ -180,35 +282,63 @@ def extract_all_details_for_thread(email):
     combines all contact info into a single return string
     """
     numbers = extract_numbers(email)
-    total_body = ""
     log_message(f"Found {numbers} to search for")
+    if len(numbers) == 0:
+        return "No numbers found"
 
-    edge_options = webdriver.EdgeOptions()
+    try:
+        log_message("Initializing Edge options...")
+        edge_options = webdriver.EdgeOptions()
+        edge_options.add_argument("--no-sandbox")
+        edge_options.add_argument("--disable-dev-shm-usage")
+        edge_options.add_argument("--disable-gpu")
+        edge_options.add_argument("--disable-extensions")
+        edge_options.add_argument("--disable-software-rasterizer")
+        edge_options.add_argument("--disable-notifications")
+        # edge_options.add_argument("--headless=new")
+        edge_options.add_argument("--start-maximized")
+        edge_options.set_capability("ms:loggingPrefs", {"performance": "ALL"})
+        
+        log_message("Attempting to create WebDriver instance...")
+        try:
+            driver = webdriver.Edge(options=edge_options)
+            log_message("WebDriver instance created successfully")
+        except Exception as e:
+            log_message(f"Failed to create WebDriver instance: {str(e)}", "error")
+            raise
 
-    edge_options.set_capability("ms:loggingPrefs", {"performance": "ALL"})
-    edge_options.add_argument("--headless")
+        try:
+            log_message("Setting up WebDriverWait...")
+            wait = WebDriverWait(driver, 20)
+            log_message("WebDriverWait configured successfully")
+        except Exception as e:
+            log_message(f"Failed to set up WebDriverWait: {str(e)}", "error")
+            driver.quit()
+            raise
 
-    # Use Selenium to navigate and search for numbers
-    driver = webdriver.Edge(options=edge_options)
-    # driver.maximize_window()
-    wait = WebDriverWait(driver, 20)
-    login_to_tms(driver, wait)
+        try:
+            log_message("Attempting to login to TMS...")
+            login_to_tms(driver, wait)
+            log_message("Successfully logged into TMS")
+        except Exception as e:
+            log_message(f"Failed to login to TMS: {str(e)}", "error")
+            driver.quit()
+            raise
 
-    for number in numbers:
-        log_message(number)
-        navigate_to_loads(driver)
-        navigate_to_loads(driver)
-        navigate_to_loads(driver)
-        search_in_tms(number, driver)
-        time.sleep(2)
-        shipper_details = get_contact_details_tms(driver, "shipper")
-        log_message("\nshipper details: ", shipper_details)
-        consignee_details = get_contact_details_tms(driver, "consignee")
-        log_message("consignee_details: ", consignee_details)
-        number_body = compose_body(number, shipper_details, consignee_details)
-        total_body += number_body
-    driver.quit()
-    return total_body
+        # Process all numbers (including retries)
+        total_body = process_numbers(driver, numbers)
+
+        driver.quit()
+        return total_body
+
+    except Exception as e:
+        log_message(f"Error in extract_all_details_for_thread: {str(e)}", "error")
+        if 'driver' in locals():
+            try:
+                driver.quit()
+            except:
+                pass
+        return f"Error in search. Look up numbers {numbers}. \n Error message: {str(e)}"
 
 
 def extract_all_unread_emails():
@@ -264,9 +394,8 @@ def find_unread_emails(folder_name, inbox):
         current_folder = inbox.Folders.Item(folder_name)
 
         if current_folder:
-            emails = current_folder.Items
+            unread_emails = current_folder.Items.Restrict("[Unread] = True")
             # emails.Sort("[ReceivedTime]", True)
-            unread_emails = [email for email in emails if email.UnRead]
 
             if unread_emails:
                 log_message(
@@ -287,8 +416,7 @@ def get_contact_details_tms(driver, details_type):
     try:
         # Take screenshot of the entire page
         log_message("Taking screenshot of page...")
-        screenshot = driver.get_screenshot_as_png()
-        image = Image.open(io.BytesIO(screenshot))
+        image = handle_screenshot(driver)
         width, height = image.size
         # crop image to only show shipper (left third) or consignee (middle third)
         if details_type == "shipper":
@@ -298,8 +426,6 @@ def get_contact_details_tms(driver, details_type):
                 (width // 3, 0, 2 * width // 3, height)
             )  # Crop to middle third of screen
 
-        image = image.convert("L")  # Convert to grayscale
-        image = image.point(lambda x: 0 if x < 128 else 255, "1")  # Increase contrast
         custom_config = r'--oem 3 --psm 6 -c tessedit_char_whitelist="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@.,_-:/ ()"'
         text = pytesseract.image_to_string(image, config=custom_config)
         emails = find_emails(text)
@@ -385,9 +511,8 @@ def navigate_to_loads(driver):
 
 def search_in_tms(number, driver):
     """
-    Uses Selenium to search TMS Mercury Gate for a particular number
-
-    Note: prone to failure
+    Uses Selenium to search TMS Mercury Gate for a particular number.
+    Returns True if search was successful, False if it failed and should be retried.
     """
     try:
         log_message(f"Searching for number {number} on TMS...")
@@ -395,15 +520,27 @@ def search_in_tms(number, driver):
         actions = ActionChains(driver)
         for _ in range(5):
             actions.send_keys(Keys.TAB).perform()
-            time.sleep(0.5)
+            time.sleep(.5)
         actions.send_keys(number)
         actions.send_keys(Keys.RETURN)
         actions.perform()
+        time.sleep(1)
 
-        log_message("Search completed successfully")
+        # Check for alert
+        try:
+            alert = driver.switch_to.alert
+            alert_text = alert.text
+            alert.accept()
+            log_message(f"Alert encountered: {alert_text}", "warning")
+            return False
+        except:
+            # No alert found, search was successful
+            log_message("Search completed successfully")
+            return True
 
     except Exception as e:
         log_message(f"Error during search: {e}", "error")
+        return False
 
 
 def setup_logging():
