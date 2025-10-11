@@ -138,7 +138,6 @@ def process_carrier_group(
             html_table_with_styles
         )
         mail.Display()
-        print(f"✅ Email created for {carrier_name}")
     except (ValueError, AttributeError) as e:
         print(f"❌ Failed to create email for {carrier_name}. Error: {e}")
 

@@ -8,19 +8,58 @@ report_path = r"C:\Users\zanderson\Downloads\Report.xlsx"
 xls = pd.read_excel(report_path, sheet_name=None)
 
 # Step 1: Filter rows where 'Name' column contains 'Zac'
-filtered_sheets = {}
+filtered = {}
 for sheet_name, df in xls.items():
     if 'Name' in df.columns:
-        df_filtered = df[df['Name'].astype(str).str.contains('Zac', na=False)].copy()
-    else:
-        df_filtered = df.copy()
-    filtered_sheets[sheet_name] = df_filtered
+        filtered[sheet_name] = df[df['Name'].astype(str).str.contains('Zac', na=False)].copy()
 
-# Step 2: Transfer sheet will be empty except for header
-if 'Transfer' in filtered_sheets:
-    filtered_sheets['Transfer'] = filtered_sheets['Transfer'].iloc[0:0]
+# Step 2: Apply yellow fill to Missed PU and Missed DROP before combining
+highlight_cells = {}
+missed_pu = pd.DataFrame()
+missed_drop = pd.DataFrame()
 
-# Step 3: Rename columns in Watchlist sheet
+if 'Missed PU' in filtered:
+    missed_pu = filtered['Missed PU'].copy()
+    if 'Target Ship (Early)' in missed_pu.columns:
+        col_idx = missed_pu.columns.get_loc('Target Ship (Early)') + 1
+        for i in range(len(missed_pu)):
+            highlight_cells[('Missed PU', i + 2, col_idx)] = True
+
+if 'Missed DROP' in filtered:
+    missed_drop = filtered['Missed DROP'].copy()
+    if 'Target Delivery (Early)' in missed_drop.columns:
+        col_idx = missed_drop.columns.get_loc('Target Delivery (Early)') + 1
+        for i in range(len(missed_drop)):
+            highlight_cells[('Missed DROP', i + 2, col_idx)] = True
+
+# Step 3: Combine into PickDrop
+pickdrop = pd.concat([missed_pu, missed_drop], ignore_index=True)
+
+# Step 4: Rename and reorder PickDrop columns
+pickdrop_mapping = {
+    'LoadID': 'BOL #',
+    'Purchase Order Number': 'PO #',
+    'PRO Number': 'PRO #',
+    'Carrier Name': 'Carrier Name',
+    'Owner': 'Owner',
+    'Target Ship (Early)': 'Ship Date',
+    'Origin Name': 'Origin Name',
+    'Origin City': 'Origin City',
+    'Origin State': 'State',
+    'Target Delivery (Early)': 'Del Date',
+    'Dest Name': 'Dest Name',
+    'Dest City': 'Dest City',
+    'Dest State': 'State',
+    'Load note message': 'Load note message'
+}
+pickdrop_order = list(pickdrop_mapping.values())
+
+pickdrop = pickdrop[[col for col in pickdrop_mapping if col in pickdrop.columns]]
+pickdrop = pickdrop.rename(columns=pickdrop_mapping)
+pickdrop = pickdrop[pickdrop_order]
+filtered['PickDrop'] = pickdrop
+
+# Step 5: Format Watchlist
 watchlist_mapping = {
     'Primary Reference': 'BOL #',
     'Purchase Order Number': 'PO #',
@@ -29,70 +68,71 @@ watchlist_mapping = {
     'Origin Name': 'Origin Name',
     'Dest Name': 'Dest Name',
     'Target Ship (Early)': 'Target Ship (Early)',
-    'Target Delivery (Early)': 'Target Delivery (Early)',
+    'Target Delivery (Early)': 'Target Delivery (Early)'
 }
-if 'Watchlist' in filtered_sheets:
-    df_watchlist = filtered_sheets['Watchlist']
-    columns_to_keep = [col for col in watchlist_mapping if col in df_watchlist.columns]
-    df_watchlist = df_watchlist[columns_to_keep].rename(columns=watchlist_mapping)
-    filtered_sheets['Watchlist'] = df_watchlist
+watchlist_order = list(watchlist_mapping.values())
 
-# Step 4: Combine Missed PU and Missed DROP into PickDrop
-missed_pu_sheet = None
-missed_drop_sheet = None
-for name in filtered_sheets:
-    if name.lower() in ['missed pu', 'missed pick']:
-        missed_pu_sheet = filtered_sheets[name]
-    elif name.lower() in ['missed drop', 'missed del']:
-        missed_drop_sheet = filtered_sheets[name]
+if 'Watchlist' in filtered:
+    df_watchlist = filtered['Watchlist']
+    df_watchlist = df_watchlist[[col for col in watchlist_mapping if col in df_watchlist.columns]]
+    df_watchlist = df_watchlist.rename(columns=watchlist_mapping)
+    df_watchlist = df_watchlist[watchlist_order]
+    filtered['Watchlist'] = df_watchlist
 
-pickdrop_df = pd.DataFrame()
-if missed_pu_sheet is not None:
-    missed_pu_sheet = missed_pu_sheet.copy()
-    if 'Target Ship (Early)' in missed_pu_sheet.columns:
-        missed_pu_sheet['Highlight'] = 'Target Ship (Early)'
-    pickdrop_df = pd.concat([pickdrop_df, missed_pu_sheet], ignore_index=True)
+# Step 6: Transfer sheet header only
+if 'Transfer' in filtered:
+    filtered['Transfer'] = filtered['Transfer'].iloc[0:0]
 
-if missed_drop_sheet is not None:
-    missed_drop_sheet = missed_drop_sheet.copy()
-    if 'Target Delivery (Early)' in missed_drop_sheet.columns:
-        missed_drop_sheet['Highlight'] = 'Target Delivery (Early)'
-    pickdrop_df = pd.concat([pickdrop_df, missed_drop_sheet], ignore_index=True)
-
-filtered_sheets['PickDrop'] = pickdrop_df
-
-# Use win32 to overwrite Report.xlsx
+# Step 7: Write to Excel using win32com
 excel = win32.gencache.EnsureDispatch('Excel.Application')
 excel.Visible = False
-excel.DisplayAlerts = False  # Suppress confirmation dialogs
-
+excel.DisplayAlerts = False
 wb = excel.Workbooks.Open(report_path)
 
-# Add a temporary sheet to avoid Excel error
-temp_sheet = wb.Sheets.Add()
-temp_sheet.Name = "TempSheet"
+# Add temp sheet
+temp = wb.Sheets.Add()
+temp.Name = "TempSheet"
 
-# Delete all existing sheets except the temporary one
+# Delete all other sheets
 for sheet in list(wb.Sheets):
     if sheet.Name != "TempSheet":
         sheet.Delete()
 
-# Add new sheets and write data
-for sheet_name, df in filtered_sheets.items():
+# Add new sheets in order
+for sheet_name in ['PickDrop', 'Transfer', 'Watchlist']:
+    df = filtered.get(sheet_name, pd.DataFrame())
     ws = wb.Sheets.Add()
     ws.Name = sheet_name
+
+    # Write headers
     for col_idx, col_name in enumerate(df.columns, start=1):
         ws.Cells(1, col_idx).Value = col_name
+
+    # Write data
     for row_idx, row in enumerate(df.values, start=2):
         for col_idx, value in enumerate(row, start=1):
-            ws.Cells(row_idx, col_idx).Value = value
+            cell = ws.Cells(row_idx, col_idx)
+            cell.Value = value
 
-# Delete the temporary sheet
+# Apply yellow fill to Missed PU and Missed DROP columns before combining
+for sheet_name in ['Missed PU', 'Missed DROP']:
+    if sheet_name in filtered:
+        df = filtered[sheet_name]
+        ws = wb.Sheets.Add()
+        ws.Name = sheet_name
+        for col_idx, col_name in enumerate(df.columns, start=1):
+            ws.Cells(1, col_idx).Value = col_name
+        for row_idx, row in enumerate(df.values, start=2):
+            for col_idx, value in enumerate(row, start=1):
+                cell = ws.Cells(row_idx, col_idx)
+                cell.Value = value
+                if (sheet_name, row_idx, col_idx) in highlight_cells:
+                    cell.Interior.Color = 65535  # Yellow
+
+# Delete temp sheet
 wb.Sheets("TempSheet").Delete()
-
-# Save and close
 wb.Save()
 wb.Close(False)
 excel.Quit()
 
-print("✅ Report.xlsx has been updated successfully.")
+print("✅ Report.xlsx updated with PickDrop, Transfer, and Watchlist.")
